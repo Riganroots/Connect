@@ -15,7 +15,8 @@ data class UserProfile(
     val isVerified: Boolean = false,
     val verifiedPhone: String = "",
     val verifiedNationalIdName: String = "",
-    val verificationMethod: String = "" // "Phone", "ID"
+    val verificationMethod: String = "", // "Phone", "ID"
+    val interests: String = "Hiking 🏔️, Food Walk 🥟, Futsal ⚽, Live Music 🎸"
 )
 
 @Entity(tableName = "plans")
@@ -78,3 +79,17 @@ data class AppNotification(
     val systemCategory: String, // "Reminder", "Recommendation", "Verification", "Welcome"
     val activityId: Long? = null
 )
+
+data class DiscoverSpot(
+    val id: String,
+    val title: String,
+    val description: String,
+    val section: String, // "Hidden Gems", "Food & Cafes", "Nightlife", "Weekend Trips", "Popular Activities"
+    val location: String, // Thamel, Boudha, Patan, Jhamsikhel, Nagarkot, Shivapuri, Chandragiri, Bhaktapur
+    val rating: Double,
+    val highlight: String,
+    val emoji: String,
+    val bestTime: String,
+    val whyVisit: String
+)
+

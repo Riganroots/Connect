@@ -10,6 +10,7 @@ import com.example.data.models.ChatMessage
 import com.example.data.models.Group
 import com.example.data.models.Plan
 import com.example.data.models.UserProfile
+import com.example.data.models.DiscoverSpot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +46,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     // Search and filter states
     val searchQuery = MutableStateFlow("")
     val selectedCategory = MutableStateFlow("All") // "All", "Play", "Explore", "Meet", "Learn", "Experience"
+    val selectedNeighborhood = MutableStateFlow("All") // "All", "Thamel", "Patan", "Boudha", "Baluwatar", "Budhanilkantha"
 
     // Live state streams
     val userProfile: StateFlow<UserProfile?>
@@ -52,19 +54,47 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     val allGroups: StateFlow<List<Group>>
     val allAvailabilities: StateFlow<List<Availability>>
     val allNotifications: StateFlow<List<com.example.data.models.AppNotification>>
+    val discoverSpots: StateFlow<List<DiscoverSpot>>
 
     init {
         val database = ConnectDatabase.getDatabase(application)
         repository = ConnectRepository(database.connectDao())
 
-        // Combine plans with search queries and category selections
-        allPlans = combine(repository.allPlans, searchQuery, selectedCategory) { plans, query, cat ->
+        // Combine plans with search queries, category selections, and neighborhood selections
+        allPlans = combine(
+            repository.allPlans,
+            searchQuery,
+            selectedCategory,
+            selectedNeighborhood
+        ) { plans, query, cat, neighborhood ->
             plans.filter { plan ->
                 val matchesQuery = plan.title.contains(query, ignoreCase = true) ||
                         plan.location.contains(query, ignoreCase = true) ||
                         plan.description.contains(query, ignoreCase = true)
                 val matchesCategory = cat == "All" || plan.category.equals(cat, ignoreCase = true)
-                matchesQuery && matchesCategory
+                
+                val matchesNeighborhood = if (neighborhood == "All") {
+                    true
+                } else {
+                    val locationText = plan.location.lowercase()
+                    val descriptionText = plan.description.lowercase()
+                    val titleText = plan.title.lowercase()
+                    
+                    when (neighborhood) {
+                        "Thamel" -> locationText.contains("thamel") || descriptionText.contains("thamel") || titleText.contains("thamel")
+                        "Patan" -> locationText.contains("patan") || locationText.contains("jhamsikhel") || locationText.contains("lalitpur") ||
+                                   descriptionText.contains("patan") || descriptionText.contains("jhamsikhel") || descriptionText.contains("lalitpur") ||
+                                   titleText.contains("patan") || titleText.contains("jhamsikhel") || titleText.contains("lalitpur")
+                        "Boudha" -> locationText.contains("boudha") || descriptionText.contains("boudha") || titleText.contains("boudha")
+                        "Baluwatar" -> locationText.contains("baluwatar") || descriptionText.contains("baluwatar") || titleText.contains("baluwatar")
+                        "Budhanilkantha" -> locationText.contains("budhanilkantha") || locationText.contains("shivapuri") ||
+                                            descriptionText.contains("budhanilkantha") || descriptionText.contains("shivapuri") ||
+                                            titleText.contains("budhanilkantha") || titleText.contains("shivapuri")
+                        else -> locationText.contains(neighborhood.lowercase()) || descriptionText.contains(neighborhood.lowercase()) || titleText.contains(neighborhood.lowercase())
+                    }
+                }
+                
+                matchesQuery && matchesCategory && matchesNeighborhood
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -79,6 +109,35 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
 
         allNotifications = repository.allNotifications
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+        discoverSpots = combine(
+            searchQuery,
+            selectedNeighborhood
+        ) { query, neighborhood ->
+            kathmanduDiscoverSpots.filter { spot ->
+                val matchesQuery = query.isBlank() || spot.title.contains(query, ignoreCase = true) ||
+                        spot.location.contains(query, ignoreCase = true) ||
+                        spot.description.contains(query, ignoreCase = true) ||
+                        spot.whyVisit.contains(query, ignoreCase = true) ||
+                        spot.highlight.contains(query, ignoreCase = true)
+                
+                val matchesNeighborhood = if (neighborhood == "All") {
+                    true
+                } else {
+                    val locationText = spot.location.lowercase()
+                    val neighborhoodText = neighborhood.lowercase()
+                    if (neighborhoodText == "patan") {
+                        locationText.contains("patan") || locationText.contains("jhamsikhel") || locationText.contains("lalitpur")
+                    } else if (neighborhoodText == "budhanilkantha") {
+                        locationText.contains("budhanilkantha") || locationText.contains("shivapuri")
+                    } else {
+                        locationText.contains(neighborhoodText)
+                    }
+                }
+                
+                matchesQuery && matchesNeighborhood
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), kathmanduDiscoverSpots)
 
         // Seed data asynchronously if empty
         viewModelScope.launch {
@@ -97,7 +156,8 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                     location = "Kathmandu, Nepal",
                     isTravellerMode = false,
                     rating = 4.8,
-                    bio = "Young professional based in Kathmandu. Up for local culinary walks, early morning trail runs, and weekend futsal. Let's Connect!"
+                    bio = "Young professional based in Kathmandu. Up for local culinary walks, early morning trail runs, and weekend futsal. Let's Connect!",
+                    interests = "Hiking 🏔️, Food Walk 🥟, Futsal ⚽, Live Music 🎸"
                 )
             )
         }
@@ -356,14 +416,15 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // Update profile settings
-    fun updateProfileInfo(name: String, bio: String, isTraveller: Boolean) {
+    fun updateProfileInfo(name: String, bio: String, isTraveller: Boolean, interests: String) {
         viewModelScope.launch {
             val p = userProfile.value ?: UserProfile()
             repository.updateProfile(
                 p.copy(
                     name = name.ifBlank { "Ayush" },
                     bio = bio,
-                    isTravellerMode = isTraveller
+                    isTravellerMode = isTraveller,
+                    interests = interests
                 )
             )
         }
@@ -556,7 +617,268 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         currentScreen.value = screen
     }
 
+    fun prefillPlan(title: String, location: String, category: String, description: String) {
+        formTitle.value = title
+        formLocation.value = location
+        formCategory.value = category
+        formDescription.value = description
+        currentScreen.value = Screen.CreatePlan
+    }
+
     suspend fun getPlanById(planId: Long): Plan? {
         return repository.getPlanById(planId)
     }
 }
+
+val kathmanduDiscoverSpots = listOf(
+    // 1. Hidden Gems
+    DiscoverSpot(
+        id = "gem_taragaon",
+        title = "Taragaon Museum",
+        description = "A stunning modernist red brick design masterpiece preserving Kathmandu's artistic history.",
+        section = "Hidden Gems",
+        location = "Boudha",
+        rating = 4.8,
+        highlight = "Modernist Brick Architecture",
+        emoji = "🏛️",
+        bestTime = "Afternoon 2 PM - 5 PM",
+        whyVisit = "Extremely quiet courtyard, brilliant photo archives, and beautiful circular windows."
+    ),
+    DiscoverSpot(
+        id = "gem_garden_secret",
+        title = "Secret Alcove in Garden of Dreams",
+        description = "The historic neo-classical garden's quiet corner, tucked away behind ivy arches.",
+        section = "Hidden Gems",
+        location = "Thamel",
+        rating = 4.7,
+        highlight = "Ivy Archways & Cafe",
+        emoji = "🌸",
+        bestTime = "Evening 4 PM - 6 PM",
+        whyVisit = "Listen to gentle waterfalls and enjoy peaceful coffee away from bustling Thamel lanes."
+    ),
+    DiscoverSpot(
+        id = "gem_swayambhu_back",
+        title = "Swayambhu Back Forest Trails",
+        description = "A quiet, winding staircase pathway going up the rear moss-covered forest of Monkey Temple.",
+        section = "Hidden Gems",
+        location = "Swayambhu",
+        rating = 4.9,
+        highlight = "Mossy Steps & Pines",
+        emoji = "🌲",
+        bestTime = "Early Morning 6 AM",
+        whyVisit = "Fresh pine scent, zero tourist crowds, and mystical local shrines surrounded by deer."
+    ),
+    DiscoverSpot(
+        id = "gem_chhauni",
+        title = "Chhauni Museum Green Lawn",
+        description = "Lush emerald grounds surrounding ancient stone shrines and bronze sculpture gallery.",
+        section = "Hidden Gems",
+        location = "Chhauni",
+        rating = 4.6,
+        highlight = "Bronze Art Heritage",
+        emoji = "🏺",
+        bestTime = "Morning 10 AM - Noon",
+        whyVisit = "Walk under centuries-old trees with tranquil birdsong and historical stone architecture."
+    ),
+
+    // 2. Food & Cafes
+    DiscoverSpot(
+        id = "food_java_patan",
+        title = "Himalayan Java Cafe Patan",
+        description = "Beautiful multi-story brick wood lounge directly overlooking traditional Newari alleys.",
+        section = "Food & Cafes",
+        location = "Patan",
+        rating = 4.7,
+        highlight = "Double Shot Cortado",
+        emoji = "☕",
+        bestTime = "Anytime",
+        whyVisit = "Great high-speed internet, premium local single-origin beans, and cozy windows for people-watching."
+    ),
+    DiscoverSpot(
+        id = "food_letrio",
+        title = "Le Trio Jhamsikhel",
+        description = "Trendy modern eatery famous for introducing delicious spicy Newari jhol momos in a clean vibe.",
+        section = "Food & Cafes",
+        location = "Jhamsikhel",
+        rating = 4.8,
+        highlight = "Jhol Momos & Potato Baskets",
+        emoji = "🥟",
+        bestTime = "Lunch 12 PM - 2 PM",
+        whyVisit = "Mouthwatering cold sesame broth momos and a relaxed outdoor garden terrace."
+    ),
+    DiscoverSpot(
+        id = "food_rosemary",
+        title = "Rosemary Kitchen",
+        description = "An organic courtyard restaurant in a quiet Thamel lane serving superb local-European fusion.",
+        section = "Food & Cafes",
+        location = "Thamel",
+        rating = 4.9,
+        highlight = "Nepali Fusion Thali",
+        emoji = "🍽️",
+        bestTime = "Dinner 7 PM - 9 PM",
+        whyVisit = "Outstanding hospitality, candle-lit dining, and ingredients sourced directly from village farms."
+    ),
+    DiscoverSpot(
+        id = "food_bhaktapur_khaja",
+        title = "Traditional Newari Khaja Ghar",
+        description = "An authentic clay-stove eatery serving spicy barbecued meats and traditional Newari plates.",
+        section = "Food & Cafes",
+        location = "Bhaktapur",
+        rating = 4.6,
+        highlight = "Samay Baji Platter & Chyang",
+        emoji = "🥢",
+        bestTime = "Lunch 1 PM - 3 PM",
+        whyVisit = "Taste wood-fired spiced buff (Choila), flattened rice, and creamy local sweet curd (Juju Dhau)."
+    ),
+
+    // 3. Nightlife / Clubs / Pubs
+    DiscoverSpot(
+        id = "night_lod",
+        title = "Lord of the Drinks (LOD)",
+        description = "Global top-100 ranked club with futuristic kinetic lighting and international DJ nights.",
+        section = "Nightlife / Clubs / Pubs",
+        location = "Thamel",
+        rating = 4.9,
+        highlight = "Kinetic Lighting & DJs",
+        emoji = "🕺",
+        bestTime = "Friday Night 10 PM+",
+        whyVisit = "Massive multi-level dancefloor, explosive sound, and unmatched high-energy crowd."
+    ),
+    DiscoverSpot(
+        id = "night_jazz",
+        title = "Jazz Upstairs",
+        description = "Legendary dimly lit wood pub hosting Kathmandu's finest live acoustic and jazz jam sessions.",
+        section = "Nightlife / Clubs / Pubs",
+        location = "Jhamsikhel",
+        rating = 4.8,
+        highlight = "Live Jazz Jam & Newari Snacks",
+        emoji = "🎷",
+        bestTime = "Saturday 8 PM+",
+        whyVisit = "Vintage jazz posters, casual low-seating tables, and amazing local musicians jamming together."
+    ),
+    DiscoverSpot(
+        id = "night_purplehaze",
+        title = "Purple Haze Rock Bar",
+        description = "Kathmandu's premier heavy rock arena. High ceilings, huge stage, and hard-rock tribute acts.",
+        section = "Nightlife / Clubs / Pubs",
+        location = "Thamel",
+        rating = 4.8,
+        highlight = "Local Rock Tribute Bands",
+        emoji = "🎸",
+        bestTime = "Nightly 9 PM+",
+        whyVisit = "Headbang to iconic classic rock covers, delicious pub food, and electric stadium-like energy."
+    ),
+    DiscoverSpot(
+        id = "night_trisara",
+        title = "Trisara Lounge",
+        description = "Beautiful open-air botanical garden restaurant with daily live acoustic artists and firepits.",
+        section = "Nightlife / Clubs / Pubs",
+        location = "Durbar Marg",
+        rating = 4.7,
+        highlight = "Acoustic Firepit Nights",
+        emoji = "🔥",
+        bestTime = "Weekend Evening 7 PM+",
+        whyVisit = "Cozy and premium, perfect for chatting with friends over live light covers of global hits."
+    ),
+
+    // 4. Weekend Trips / Hiking
+    DiscoverSpot(
+        id = "trip_nagarkot",
+        title = "Nagarkot Sunrise Ridge Hike",
+        description = "Walk along the lush pine-forested ridge to see the sun rising over the Mt. Everest range.",
+        section = "Weekend Trips",
+        location = "Nagarkot",
+        rating = 4.9,
+        highlight = "Mt. Everest Horizon View",
+        emoji = "🏔️",
+        bestTime = "Saturday 5:30 AM",
+        whyVisit = "Breathtaking pink skies, panoramic mountain vistas, and fresh mountain air away from city dust."
+    ),
+    DiscoverSpot(
+        id = "trip_shivapuri",
+        title = "Shivapuri Peak National Park Trek",
+        description = "Challenging forest trail winding past mossy trees, monasteries, and the Bagdwar water spring.",
+        section = "Weekend Trips",
+        location = "Shivapuri",
+        rating = 4.8,
+        highlight = "Bagdwar Holy Water Source",
+        emoji = "🥾",
+        bestTime = "Saturday 8:00 AM",
+        whyVisit = "Trek through dense subtropical oak forests, hear local birds, and stand atop the 2,730m peak."
+    ),
+    DiscoverSpot(
+        id = "trip_chandragiri",
+        title = "Chandragiri Cable Car & Summit",
+        description = "Soar above the clouds on a scenic cable car ride to a majestic hilltop Shiva temple.",
+        section = "Weekend Trips",
+        location = "Chandragiri",
+        rating = 4.7,
+        highlight = "Cable Car above Clouds",
+        emoji = "🚡",
+        bestTime = "Morning 9:00 AM",
+        whyVisit = "Stunning bird's eye view of Kathmandu Valley flanked by snowcapped Himalayan peaks."
+    ),
+    DiscoverSpot(
+        id = "trip_champadevi",
+        title = "Champadevi Forest Trail",
+        description = "An uphill ridge hike starting near Pharping and leading to a peaceful mountaintop Buddhist stupa.",
+        section = "Weekend Trips",
+        location = "Pharping",
+        rating = 4.7,
+        highlight = "Pine Ridge Buddhist Stupa",
+        emoji = "🧗",
+        bestTime = "Sunday 7:30 AM",
+        whyVisit = "Enchanting incense smells, colorful prayer flags blowing, and spectacular valley rim photography."
+    ),
+
+    // 5. Popular Activities / Things to Do
+    DiscoverSpot(
+        id = "act_boudha_kora",
+        title = "Boudha Stupa Sunset Kora",
+        description = "Join thousands of devotees walking around the glowing white hemispherical dome.",
+        section = "Popular Activities",
+        location = "Boudha",
+        rating = 4.9,
+        highlight = "Glowing Dome & Mantra Chants",
+        emoji = "☸️",
+        bestTime = "Sunset 5:30 PM - 7:00 PM",
+        whyVisit = "Smell organic butter lamps, hear deep Buddhist horns, and see prayer wheels spin as evening falls."
+    ),
+    DiscoverSpot(
+        id = "act_patan_walk",
+        title = "Patan Golden Temple Secret Tour",
+        description = "Explore medieval courtyard brick paths leading into a gilded 12th-century monastery.",
+        section = "Popular Activities",
+        location = "Patan",
+        rating = 4.8,
+        highlight = "12th Century Gilded Monastery",
+        emoji = "🕌",
+        bestTime = "Morning 10 AM",
+        whyVisit = "Admire metalwork scriptures, feed traditional holy tortoises, and feel ancient spiritual vibes."
+    ),
+    DiscoverSpot(
+        id = "act_pottery",
+        title = "Bhaktapur Pottery Hands-On Workshop",
+        description = "Learn the traditional art of molding black clay on a massive wooden spinning wheel.",
+        section = "Popular Activities",
+        location = "Bhaktapur",
+        rating = 4.7,
+        highlight = "Traditional Clay Shaping",
+        emoji = "🏺",
+        bestTime = "Afternoon 1 PM - 3 PM",
+        whyVisit = "Work with local master artisans, dry your customized clay pot in the sun, and take it home!"
+    ),
+    DiscoverSpot(
+        id = "act_jhamsikhel_murals",
+        title = "Jhamsikhel Art & Murals Exploration",
+        description = "Walk through quirky alleys lined with social-commentary street art and design boutiques.",
+        section = "Popular Activities",
+        location = "Jhamsikhel",
+        rating = 4.6,
+        highlight = "Street Murals & Independent Galleries",
+        emoji = "🎨",
+        bestTime = "Afternoon 3 PM - 5 PM",
+        whyVisit = "Stunning photogenic backdrops, local artisanal shops, and modern hipster bars to drop into."
+    )
+)
+
