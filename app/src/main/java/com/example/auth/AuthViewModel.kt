@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.BuildConfig
+import com.google.firebase.FirebaseApp
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,25 +15,35 @@ import kotlinx.coroutines.launch
 data class AuthUiState(
     val isFirebaseConfigured: Boolean,
     val user: AuthUser? = null,
+    val isCloudProfileReady: Boolean = false,
     val isPreviewMode: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val infoMessage: String? = null
 ) {
     val canEnterApp: Boolean
-        get() = user != null || isPreviewMode
+        get() = isPreviewMode || (user != null && isCloudProfileReady)
 }
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val gateway = FirebaseAuthGateway(application)
+    private val firestore: FirebaseFirestore? =
+        FirebaseApp.getApps(application).firstOrNull()?.let { FirebaseFirestore.getInstance(it) }
+
+    private val initialUser = gateway.currentUser()
 
     private val _uiState = MutableStateFlow(
         AuthUiState(
             isFirebaseConfigured = gateway.isConfigured,
-            user = gateway.currentUser()
+            user = initialUser,
+            isLoading = initialUser != null
         )
     )
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+
+    init {
+        initialUser?.let(::ensureCloudProfile)
+    }
 
     fun signIn(email: String, password: String) {
         val validationError = validate(email, password)
@@ -121,16 +134,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, infoMessage = null)
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                errorMessage = null,
+                infoMessage = null,
+                isCloudProfileReady = false
+            )
+
             block()
-                .onSuccess { user ->
-                    _uiState.value = _uiState.value.copy(
-                        user = user,
-                        isPreviewMode = false,
-                        isLoading = false,
-                        errorMessage = null
-                    )
-                }
+                .onSuccess(::ensureCloudProfile)
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -138,6 +150,76 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
         }
+    }
+
+    private fun ensureCloudProfile(user: AuthUser) {
+        val db = firestore
+        if (db == null) {
+            failCloudProfile("Firestore is not available in this build.")
+            return
+        }
+
+        val document = db.collection("users").document(user.uid)
+        document.get()
+            .addOnSuccessListener { snapshot ->
+                if (snapshot.exists()) {
+                    document.update(
+                        mapOf(
+                            "updatedAt" to FieldValue.serverTimestamp(),
+                            "lastLoginAt" to FieldValue.serverTimestamp()
+                        )
+                    ).addOnSuccessListener {
+                        markCloudProfileReady(user)
+                    }.addOnFailureListener { error ->
+                        failCloudProfile(error.localizedMessage ?: "Could not update your cloud profile.")
+                    }
+                } else {
+                    val profile = mapOf(
+                        "uid" to user.uid,
+                        "displayName" to (user.displayName ?: ""),
+                        "location" to "",
+                        "bio" to "",
+                        "interests" to emptyList<String>(),
+                        "photoUrl" to "",
+                        "isVerified" to false,
+                        "schemaVersion" to 1,
+                        "createdAt" to FieldValue.serverTimestamp(),
+                        "updatedAt" to FieldValue.serverTimestamp(),
+                        "lastLoginAt" to FieldValue.serverTimestamp()
+                    )
+
+                    document.set(profile)
+                        .addOnSuccessListener {
+                            markCloudProfileReady(user)
+                        }
+                        .addOnFailureListener { error ->
+                            failCloudProfile(error.localizedMessage ?: "Could not create your cloud profile.")
+                        }
+                }
+            }
+            .addOnFailureListener { error ->
+                failCloudProfile(error.localizedMessage ?: "Could not load your cloud profile.")
+            }
+    }
+
+    private fun markCloudProfileReady(user: AuthUser) {
+        _uiState.value = _uiState.value.copy(
+            user = user,
+            isCloudProfileReady = true,
+            isPreviewMode = false,
+            isLoading = false,
+            errorMessage = null
+        )
+    }
+
+    private fun failCloudProfile(message: String) {
+        gateway.signOut()
+        _uiState.value = _uiState.value.copy(
+            user = null,
+            isCloudProfileReady = false,
+            isLoading = false,
+            errorMessage = "Account sign-in worked, but cloud profile setup failed. $message"
+        )
     }
 
     private fun validate(email: String, password: String): String? = when {
