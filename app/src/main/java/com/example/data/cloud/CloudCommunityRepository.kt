@@ -11,6 +11,8 @@ import com.google.firebase.firestore.Query
 import java.util.Date
 import kotlin.coroutines.resume
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -75,6 +77,42 @@ class CloudCommunityRepository(context: Context) {
             return@callbackFlow
         }
 
+        var documents = emptyList<com.google.firebase.firestore.DocumentSnapshot>()
+
+        fun emitCurrentRows() {
+            val now = System.currentTimeMillis()
+            val rows = documents.mapNotNull { document ->
+                val userId = document.getString("userId").orEmpty()
+                val userName = document.getString("userName").orEmpty()
+                val statusText = document.getString("statusText").orEmpty()
+                val iconType = document.getString("iconType").orEmpty()
+                val updatedAt = (document.get("updatedAt") as? Timestamp)?.toDate()?.time ?: now
+                val expiresAt = (document.get("expiresAt") as? Timestamp)?.toDate()?.time ?: 0L
+
+                if (
+                    userId.isBlank() ||
+                    userName.isBlank() ||
+                    statusText.isBlank() ||
+                    expiresAt <= now
+                ) {
+                    return@mapNotNull null
+                }
+
+                Availability(
+                    userId = userId,
+                    userName = if (userId == currentUserId) "$userName (You)" else userName,
+                    statusText = statusText,
+                    iconType = iconType,
+                    timeAgo = relativeTime(updatedAt, now),
+                    isCurrentUser = userId == currentUserId,
+                    isUserVerified = false,
+                    updatedAtMillis = updatedAt
+                )
+            }
+
+            trySend(rows)
+        }
+
         val registration = db.collection(AVAILABILITY)
             .orderBy("updatedAt", Query.Direction.DESCENDING)
             .limit(50)
@@ -84,40 +122,21 @@ class CloudCommunityRepository(context: Context) {
                     return@addSnapshotListener
                 }
 
-                val now = System.currentTimeMillis()
-                val rows = snapshot?.documents.orEmpty().mapNotNull { document ->
-                    val userId = document.getString("userId").orEmpty()
-                    val userName = document.getString("userName").orEmpty()
-                    val statusText = document.getString("statusText").orEmpty()
-                    val iconType = document.getString("iconType").orEmpty()
-                    val updatedAt = (document.get("updatedAt") as? Timestamp)?.toDate()?.time ?: now
-                    val expiresAt = (document.get("expiresAt") as? Timestamp)?.toDate()?.time ?: 0L
-
-                    if (
-                        userId.isBlank() ||
-                        userName.isBlank() ||
-                        statusText.isBlank() ||
-                        expiresAt <= now
-                    ) {
-                        return@mapNotNull null
-                    }
-
-                    Availability(
-                        userId = userId,
-                        userName = if (userId == currentUserId) "$userName (You)" else userName,
-                        statusText = statusText,
-                        iconType = iconType,
-                        timeAgo = relativeTime(updatedAt, now),
-                        isCurrentUser = userId == currentUserId,
-                        isUserVerified = false,
-                        updatedAtMillis = updatedAt
-                    )
-                }
-
-                trySend(rows)
+                documents = snapshot?.documents.orEmpty()
+                emitCurrentRows()
             }
 
-        awaitClose { registration.remove() }
+        val ticker = launch {
+            while (true) {
+                delay(60_000L)
+                emitCurrentRows()
+            }
+        }
+
+        awaitClose {
+            ticker.cancel()
+            registration.remove()
+        }
     }
 
     suspend fun setAvailableNow(
