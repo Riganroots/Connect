@@ -122,6 +122,8 @@ fun PlanCard(
     onSaveToggle: () -> Unit,
     onChatClick: () -> Unit
 ) {
+    val chatRequiresJoin = plan.cloudId.isNotBlank() && !plan.isJoinedByMe
+
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 7.dp),
         shape = RoundedCornerShape(20.dp),
@@ -244,14 +246,23 @@ fun PlanCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = onChatClick,
+                    enabled = !chatRequiresJoin,
                     modifier = Modifier.weight(0.42f).height(42.dp),
                     shape = RoundedCornerShape(14.dp),
                     border = BorderStroke(1.dp, ConnectGrayLight),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = ConnectDarkGreen)
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(15.dp))
+                    Icon(
+                        if (chatRequiresJoin) Icons.Default.Lock else Icons.Default.Send,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp)
+                    )
                     Spacer(modifier = Modifier.width(5.dp))
-                    Text("Chat", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        if (chatRequiresJoin) "Join to chat" else "Chat",
+                        fontSize = if (chatRequiresJoin) 9.sp else 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 Button(
