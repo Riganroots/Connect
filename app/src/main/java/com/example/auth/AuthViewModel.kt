@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.BuildConfig
+import com.example.notifications.PushTokenRegistrar
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -27,6 +28,7 @@ data class AuthUiState(
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val gateway = FirebaseAuthGateway(application)
+    private val pushTokenRegistrar = PushTokenRegistrar(application)
     private val firestore: FirebaseFirestore? =
         FirebaseApp.getApps(application).firstOrNull()?.let { FirebaseFirestore.getInstance(it) }
 
@@ -113,11 +115,19 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun signOut() {
-        gateway.signOut()
-        _uiState.value = AuthUiState(
-            isFirebaseConfigured = gateway.isConfigured,
-            user = null
-        )
+        val userId = gateway.currentUser()?.uid
+
+        viewModelScope.launch {
+            if (!userId.isNullOrBlank()) {
+                pushTokenRegistrar.unregisterCurrentToken(userId)
+            }
+
+            gateway.signOut()
+            _uiState.value = AuthUiState(
+                isFirebaseConfigured = gateway.isConfigured,
+                user = null
+            )
+        }
     }
 
     fun clearMessage() {
