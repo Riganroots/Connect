@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.cloud.CloudActivityRepository
+import com.example.data.cloud.CloudChatRepository
 import com.example.data.database.ConnectDatabase
 import com.example.data.database.ConnectRepository
 import com.example.data.models.Availability
@@ -35,11 +36,15 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
 
     private val repository: ConnectRepository
     private val cloudActivityRepository: CloudActivityRepository
+    private val cloudChatRepository: CloudChatRepository
     private var cloudActivityJob: Job? = null
+    private val chatStates = mutableMapOf<Long, MutableStateFlow<List<ChatMessage>>>()
+    private val chatJobs = mutableMapOf<Long, Job>()
 
     private val activeUserId = MutableStateFlow(PREVIEW_USER_ID)
     val currentUserId: StateFlow<String> = activeUserId
     val cloudActivityError = MutableStateFlow<String?>(null)
+    val cloudChatError = MutableStateFlow<String?>(null)
 
     // Screen navigation state
     val currentScreen = MutableStateFlow<Screen>(Screen.Home)
@@ -71,6 +76,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         val database = ConnectDatabase.getDatabase(application)
         repository = ConnectRepository(database.connectDao())
         cloudActivityRepository = CloudActivityRepository(application)
+        cloudChatRepository = CloudChatRepository(application)
 
         val sessionPlans = combine(repository.allPlans, activeUserId) { plans, userId ->
             if (userId == PREVIEW_USER_ID) {
@@ -397,6 +403,10 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         activeUserId.value = stableId
         cloudActivityJob?.cancel()
         cloudActivityError.value = null
+        chatJobs.values.forEach { it.cancel() }
+        chatJobs.clear()
+        chatStates.clear()
+        cloudChatError.value = null
 
         if (!isPreviewMode) {
             cloudActivityJob = viewModelScope.launch {
@@ -504,15 +514,39 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // Chat with Organizer system
+    // Activity chat: Firestore for real accounts, Room for Preview Mode.
     fun getChatsForPlan(planId: Long): StateFlow<List<ChatMessage>> {
-        val flow = repository.getChatsForPlan(planId)
-        // We'll return it as a StateFlow and seed it with a welcome host message asynchronously
-        viewModelScope.launch {
-            val exist = flow.first().isEmpty()
-            if (exist) {
-                val plan = repository.getPlanById(planId)
-                if (plan != null) {
+        chatStates[planId]?.let { return it }
+
+        cloudChatError.value = null
+        val state = MutableStateFlow<List<ChatMessage>>(emptyList())
+        chatStates[planId] = state
+
+        chatJobs[planId] = viewModelScope.launch {
+            val plan = repository.getPlanById(planId)
+            if (plan == null) {
+                cloudChatError.value = "Activity not found."
+                return@launch
+            }
+
+            val userId = activeUserId.value
+            if (plan.cloudId.isNotBlank() && userId != PREVIEW_USER_ID) {
+                cloudChatRepository.observeMessages(
+                    activityId = plan.cloudId,
+                    localPlanId = planId,
+                    userId = userId
+                )
+                    .catch { error ->
+                        cloudChatError.value = error.localizedMessage ?: "Could not load activity chat."
+                    }
+                    .collect { messages ->
+                        cloudChatError.value = null
+                        state.value = messages
+                    }
+            } else {
+                val localFlow = repository.getChatsForPlan(planId)
+
+                if (localFlow.first().isEmpty()) {
                     repository.sendChatMessage(
                         ChatMessage(
                             planId = planId,
@@ -523,23 +557,49 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                         )
                     )
                 }
+
+                localFlow.collect { messages ->
+                    state.value = messages
+                }
             }
         }
-        return flow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+        return state
     }
 
     fun sendChatMessage(planId: Long, text: String) {
-        if (text.isBlank()) return
+        val cleanText = text.trim()
+        if (cleanText.isBlank()) return
+
         viewModelScope.launch {
-            repository.sendChatMessage(
-                ChatMessage(
-                    planId = planId,
-                    senderName = "${userProfile.value?.name ?: "Connect Member"} (You)",
-                    messageText = text,
-                    isMe = true,
-                    timestamp = System.currentTimeMillis()
+            val plan = repository.getPlanById(planId) ?: return@launch
+            val userId = activeUserId.value
+            val senderName = userProfile.value?.name ?: "Connect Member"
+
+            if (plan.cloudId.isNotBlank() && userId != PREVIEW_USER_ID) {
+                cloudChatRepository.sendMessage(
+                    activityId = plan.cloudId,
+                    senderId = userId,
+                    senderName = senderName,
+                    text = cleanText
                 )
-            )
+                    .onFailure {
+                        cloudChatError.value = it.localizedMessage ?: "Could not send message."
+                    }
+                    .onSuccess {
+                        cloudChatError.value = null
+                    }
+            } else {
+                repository.sendChatMessage(
+                    ChatMessage(
+                        planId = planId,
+                        senderName = senderName,
+                        messageText = cleanText,
+                        isMe = true,
+                        timestamp = System.currentTimeMillis()
+                    )
+                )
+            }
         }
     }
 
