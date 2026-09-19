@@ -164,6 +164,10 @@ class ConnectRepository(private val dao: ConnectDao) {
         return dao.insertPlan(plan)
     }
 
+    suspend fun clearCloudPlans() {
+        dao.deleteAllCloudPlans()
+    }
+
     suspend fun syncCloudPlans(plans: List<Plan>) {
         for (plan in plans) {
             val existing = dao.getPlanByCloudId(plan.cloudId)
