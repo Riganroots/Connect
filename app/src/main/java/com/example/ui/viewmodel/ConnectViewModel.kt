@@ -578,7 +578,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                 organizerRating = selfProfile?.rating ?: 0.0,
                 joinedCount = 1,
                 isJoinedByMe = true,
-                isVerifiedOrganizer = isVerifiedUser
+                isVerifiedOrganizer = if (userId == PREVIEW_USER_ID) isVerifiedUser else false
             )
 
             val planId = if (userId == PREVIEW_USER_ID) {
