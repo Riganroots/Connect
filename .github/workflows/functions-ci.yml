@@ -36,7 +36,11 @@ jobs:
 
       - name: Verify Firebase modules
         working-directory: functions
-        run: node -e "require('firebase-admin/app'); require('firebase-admin/messaging'); require('firebase-functions/v2/firestore')"
+        run: node -e "require('firebase-admin/app'); require('firebase-admin/firestore'); require('firebase-admin/messaging'); require('firebase-functions/v2/firestore'); require('firebase-functions/v2/options')"
+
+      - name: Load notification functions
+        working-directory: functions
+        run: node -e "require('./index.js')"
 
       - name: Syntax check
         run: npm run --prefix functions check
