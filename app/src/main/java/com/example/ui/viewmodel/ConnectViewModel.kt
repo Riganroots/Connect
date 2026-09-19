@@ -3,6 +3,7 @@ package com.example.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.cloud.CloudActivityRepository
 import com.example.data.database.ConnectDatabase
 import com.example.data.database.ConnectRepository
 import com.example.data.models.Availability
@@ -11,9 +12,12 @@ import com.example.data.models.Group
 import com.example.data.models.Plan
 import com.example.data.models.UserProfile
 import com.example.data.models.DiscoverSpot
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -30,8 +34,12 @@ sealed class Screen {
 class ConnectViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: ConnectRepository
+    private val cloudActivityRepository: CloudActivityRepository
+    private var cloudActivityJob: Job? = null
+
     private val activeUserId = MutableStateFlow(PREVIEW_USER_ID)
     val currentUserId: StateFlow<String> = activeUserId
+    val cloudActivityError = MutableStateFlow<String?>(null)
 
     // Screen navigation state
     val currentScreen = MutableStateFlow<Screen>(Screen.Home)
@@ -62,10 +70,19 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     init {
         val database = ConnectDatabase.getDatabase(application)
         repository = ConnectRepository(database.connectDao())
+        cloudActivityRepository = CloudActivityRepository(application)
 
-        // Combine plans with search queries, category selections, and neighborhood selections
+        val sessionPlans = combine(repository.allPlans, activeUserId) { plans, userId ->
+            if (userId == PREVIEW_USER_ID) {
+                plans.filter { it.cloudId.isBlank() }
+            } else {
+                plans.filter { it.cloudId.isNotBlank() }
+            }
+        }
+
+        // Combine session-scoped plans with search, category and neighborhood filters.
         allPlans = combine(
-            repository.allPlans,
+            sessionPlans,
             searchQuery,
             selectedCategory,
             selectedNeighborhood
@@ -339,29 +356,35 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     // Toggle Join Action
     fun toggleJoinPlan(planId: Long) {
         viewModelScope.launch {
-            repository.toggleJoinPlan(planId)
-            val updatedPlan = repository.getPlanById(planId)
-            if (updatedPlan != null) {
-                if (updatedPlan.isJoinedByMe) {
-                    repository.insertNotification(
-                        com.example.data.models.AppNotification(
-                            title = "📅 Joined: ${updatedPlan.title}",
-                            description = "Keep date (${updatedPlan.date}) & time (${updatedPlan.time}) on your calendar. Host: ${updatedPlan.organizerName}. Coordinated at Jhamsikhel/Kathmandu.",
-                            systemCategory = "Reminder",
-                            activityId = planId
-                        )
-                    )
+            val plan = repository.getPlanById(planId) ?: return@launch
+            val userId = activeUserId.value
+
+            val joined = if (plan.cloudId.isNotBlank() && userId != PREVIEW_USER_ID) {
+                if (plan.organizerId == userId) {
+                    true
                 } else {
-                    repository.insertNotification(
-                        com.example.data.models.AppNotification(
-                            title = "👋 Left Plan: ${updatedPlan.title}",
-                            description = "You withdrew from this scheduled meetup. Your spot has been returned to the community pool.",
-                            systemCategory = "Reminder",
-                            activityId = planId
-                        )
-                    )
+                    cloudActivityRepository.toggleJoin(plan.cloudId, userId)
+                        .onFailure { cloudActivityError.value = it.localizedMessage ?: "Could not update activity membership." }
+                        .getOrElse { return@launch }
                 }
+            } else {
+                repository.toggleJoinPlan(planId)
+                repository.getPlanById(planId)?.isJoinedByMe ?: return@launch
             }
+
+            cloudActivityError.value = null
+            repository.insertNotification(
+                com.example.data.models.AppNotification(
+                    title = if (joined) "📅 Joined: ${plan.title}" else "👋 Left Plan: ${plan.title}",
+                    description = if (joined) {
+                        "Keep ${plan.date} at ${plan.time} on your calendar. Host: ${plan.organizerName}. Meeting point: ${plan.location}."
+                    } else {
+                        "You left this activity and your spot is available to the community again."
+                    },
+                    systemCategory = "Reminder",
+                    activityId = planId
+                )
+            )
         }
     }
 
@@ -372,6 +395,21 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     ) {
         val stableId = userId.ifBlank { PREVIEW_USER_ID }
         activeUserId.value = stableId
+        cloudActivityJob?.cancel()
+        cloudActivityError.value = null
+
+        if (!isPreviewMode) {
+            cloudActivityJob = viewModelScope.launch {
+                cloudActivityRepository.observeActivities(stableId)
+                    .catch { error ->
+                        cloudActivityError.value = error.localizedMessage ?: "Could not load activities."
+                    }
+                    .collect { plans ->
+                        cloudActivityError.value = null
+                        repository.syncCloudPlans(plans)
+                    }
+            }
+        }
 
         viewModelScope.launch {
             val existing = repository.getProfileDirect(stableId)
@@ -511,7 +549,9 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val selfProfile = userProfile.value
             val isVerifiedUser = selfProfile?.isVerified ?: false
+            val userId = activeUserId.value
             val p = Plan(
+                organizerId = userId,
                 title = title,
                 category = category,
                 location = location,
@@ -521,12 +561,22 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                 participantsNeeded = neededInt,
                 description = description,
                 organizerName = selfProfile?.name ?: "Connect Member",
-                organizerRating = selfProfile?.rating ?: 4.8,
+                organizerRating = selfProfile?.rating ?: 0.0,
                 joinedCount = 1,
-                isJoinedByMe = true, // You auto-joined your own plan
+                isJoinedByMe = true,
                 isVerifiedOrganizer = isVerifiedUser
             )
-            val planId = repository.insertPlan(p)
+
+            val planId = if (userId == PREVIEW_USER_ID) {
+                repository.insertPlan(p)
+            } else {
+                val cloudId = cloudActivityRepository.createActivity(p, userId)
+                    .onFailure { cloudActivityError.value = it.localizedMessage ?: "Could not publish activity." }
+                    .getOrElse { return@launch }
+
+                cloudActivityError.value = null
+                repository.insertPlan(p.copy(cloudId = cloudId))
+            }
 
             // Insert system notification log
             repository.insertNotification(
