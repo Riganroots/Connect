@@ -1,4 +1,4 @@
-package com.example
+package com.example.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -294,7 +294,6 @@ fun ConnectBottomNavigation(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(10.dp)
-            .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
         NavigationBarItem(
             selected = currentScreen is Screen.Home,
