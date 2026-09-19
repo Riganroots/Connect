@@ -1,10 +1,14 @@
 package com.example
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
@@ -46,11 +50,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.content.ContextCompat
 import com.example.data.models.Availability
 import com.example.data.models.Group
 import com.example.data.models.Plan
 import com.example.data.models.UserProfile
 import com.example.auth.AuthViewModel
+import com.example.notifications.ConnectNotificationCenter
+import com.example.notifications.PushTokenRegistrar
 import com.example.ui.auth.AuthGate
 import com.example.ui.theme.*
 import com.example.ui.components.AppHeader
@@ -66,10 +73,18 @@ import com.example.ui.viewmodel.kathmanduDiscoverSpots
 class MainActivity : ComponentActivity() {
     private val viewModel: ConnectViewModel by viewModels()
     private val authViewModel: AuthViewModel by viewModels()
+    private val pushTokenRegistrar by lazy { PushTokenRegistrar(applicationContext) }
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        // Notifications are optional; the app remains usable if permission is denied.
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        ConnectNotificationCenter.createChannel(this)
         setContent {
             MyApplicationTheme {
                 AuthGate(viewModel = authViewModel) { session ->
@@ -79,6 +94,11 @@ class MainActivity : ComponentActivity() {
                             suggestedName = session.suggestedName,
                             isPreviewMode = session.isPreviewMode
                         )
+
+                        if (!session.isPreviewMode) {
+                            pushTokenRegistrar.registerCurrentToken(session.userId)
+                            requestNotificationPermissionIfNeeded()
+                        }
                     }
 
                     Scaffold(
@@ -91,6 +111,26 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+
+        if (
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
+        val preferences = getSharedPreferences("connect_notification_preferences", MODE_PRIVATE)
+        val alreadyRequested = preferences.getBoolean("permission_requested", false)
+        if (alreadyRequested) return
+
+        preferences.edit().putBoolean("permission_requested", true).apply()
+        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 }
 
