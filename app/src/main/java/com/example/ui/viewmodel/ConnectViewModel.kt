@@ -441,7 +441,20 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     // Toggle Saved Status
     fun toggleSavePlan(planId: Long) {
         viewModelScope.launch {
-            repository.toggleSavePlan(planId)
+            val plan = repository.getPlanById(planId) ?: return@launch
+            val userId = activeUserId.value
+
+            if (plan.cloudId.isNotBlank() && userId != PREVIEW_USER_ID) {
+                cloudActivityRepository.toggleSaved(plan.cloudId, userId)
+                    .onFailure {
+                        cloudActivityError.value = it.localizedMessage ?: "Could not update saved activity."
+                    }
+                    .onSuccess {
+                        cloudActivityError.value = null
+                    }
+            } else {
+                repository.toggleSavePlan(planId)
+            }
         }
     }
 
