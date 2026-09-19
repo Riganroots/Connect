@@ -31,9 +31,9 @@ class ConnectMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-        val intendedUserId = message.data["targetUserId"]
+        val intendedUserId = message.data["targetUserId"] ?: return
 
-        if (!intendedUserId.isNullOrBlank() && intendedUserId != currentUserId) {
+        if (intendedUserId != currentUserId) {
             return
         }
 
