@@ -50,6 +50,8 @@ import com.example.data.models.Group
 import com.example.data.models.Plan
 import com.example.data.models.UserProfile
 import com.example.ui.theme.*
+import com.example.ui.components.AppHeader
+import com.example.ui.components.ConnectBottomNavigation
 import com.example.ui.viewmodel.ConnectViewModel
 import com.example.ui.viewmodel.Screen
 import com.example.ui.viewmodel.kathmanduDiscoverSpots
