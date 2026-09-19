@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.data.models.Plan
 import com.google.android.gms.tasks.Task
 import com.google.firebase.FirebaseApp
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -24,7 +25,40 @@ class CloudActivityRepository(context: Context) {
             return@callbackFlow
         }
 
-        val registration = db.collection(ACTIVITIES)
+        var activityDocuments: List<DocumentSnapshot> = emptyList()
+        var joinedActivityIds: Set<String> = emptySet()
+
+        fun emitCurrentState() {
+            val plans = activityDocuments.mapNotNull { document ->
+                val title = document.getString("title").orEmpty()
+                if (title.isBlank()) return@mapNotNull null
+
+                val organizerId = document.getString("organizerId").orEmpty()
+
+                Plan(
+                    cloudId = document.id,
+                    organizerId = organizerId,
+                    title = title,
+                    category = document.getString("category") ?: "Meet",
+                    location = document.getString("location").orEmpty(),
+                    date = document.getString("date").orEmpty(),
+                    time = document.getString("time") ?: "Anytime",
+                    pricePerPerson = document.getString("pricePerPerson") ?: "Free",
+                    participantsNeeded = (document.getLong("participantsNeeded") ?: 0L).toInt(),
+                    description = document.getString("description").orEmpty(),
+                    organizerName = document.getString("organizerName") ?: "Connect Member",
+                    organizerRating = document.getDouble("organizerRating") ?: 0.0,
+                    joinedCount = (document.getLong("joinedCount") ?: 1L).toInt(),
+                    isJoinedByMe = organizerId == userId || joinedActivityIds.contains(document.id),
+                    isSaved = false,
+                    isVerifiedOrganizer = document.getBoolean("isVerifiedOrganizer") ?: false
+                )
+            }
+
+            trySend(plans)
+        }
+
+        val activityRegistration = db.collection(ACTIVITIES)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -32,45 +66,39 @@ class CloudActivityRepository(context: Context) {
                     return@addSnapshotListener
                 }
 
-                val plans = snapshot?.documents.orEmpty().mapNotNull { document ->
-                    val title = document.getString("title").orEmpty()
-                    if (title.isBlank()) return@mapNotNull null
-
-                    val participantIds = (document.get("participantIds") as? List<*>)
-                        .orEmpty()
-                        .filterIsInstance<String>()
-
-                    Plan(
-                        cloudId = document.id,
-                        organizerId = document.getString("organizerId").orEmpty(),
-                        title = title,
-                        category = document.getString("category") ?: "Meet",
-                        location = document.getString("location").orEmpty(),
-                        date = document.getString("date").orEmpty(),
-                        time = document.getString("time") ?: "Anytime",
-                        pricePerPerson = document.getString("pricePerPerson") ?: "Free",
-                        participantsNeeded = (document.getLong("participantsNeeded") ?: 0L).toInt(),
-                        description = document.getString("description").orEmpty(),
-                        organizerName = document.getString("organizerName") ?: "Connect Member",
-                        organizerRating = document.getDouble("organizerRating") ?: 0.0,
-                        joinedCount = participantIds.size,
-                        isJoinedByMe = participantIds.contains(userId),
-                        isSaved = false,
-                        isVerifiedOrganizer = document.getBoolean("isVerifiedOrganizer") ?: false
-                    )
-                }
-
-                trySend(plans)
+                activityDocuments = snapshot?.documents.orEmpty()
+                emitCurrentState()
             }
 
-        awaitClose { registration.remove() }
+        val membershipRegistration = db.collection(USERS)
+            .document(userId)
+            .collection(JOINED_ACTIVITIES)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                joinedActivityIds = snapshot?.documents.orEmpty().map { it.id }.toSet()
+                emitCurrentState()
+            }
+
+        awaitClose {
+            activityRegistration.remove()
+            membershipRegistration.remove()
+        }
     }
 
     suspend fun createActivity(plan: Plan, organizerId: String): Result<String> {
         val db = firestore
             ?: return Result.failure(IllegalStateException("Firestore is not configured."))
 
-        val document = db.collection(ACTIVITIES).document()
+        val activity = db.collection(ACTIVITIES).document()
+        val membership = db.collection(USERS)
+            .document(organizerId)
+            .collection(JOINED_ACTIVITIES)
+            .document(activity.id)
+
         val data = hashMapOf<String, Any>(
             "organizerId" to organizerId,
             "organizerName" to plan.organizerName,
@@ -83,54 +111,80 @@ class CloudActivityRepository(context: Context) {
             "pricePerPerson" to plan.pricePerPerson,
             "participantsNeeded" to plan.participantsNeeded,
             "description" to plan.description,
-            "participantIds" to listOf(organizerId),
+            "joinedCount" to 1,
             "isVerifiedOrganizer" to plan.isVerifiedOrganizer,
             "createdAt" to FieldValue.serverTimestamp(),
             "updatedAt" to FieldValue.serverTimestamp()
         )
 
-        return document.set(data).awaitResult().map { document.id }
+        val batch = db.batch()
+        batch.set(activity, data)
+        batch.set(
+            membership,
+            mapOf(
+                "activityId" to activity.id,
+                "joinedAt" to FieldValue.serverTimestamp()
+            )
+        )
+
+        return batch.commit().awaitResult().map { activity.id }
     }
 
     suspend fun toggleJoin(activityId: String, userId: String): Result<Boolean> {
         val db = firestore
             ?: return Result.failure(IllegalStateException("Firestore is not configured."))
 
-        val reference = db.collection(ACTIVITIES).document(activityId)
+        val activity = db.collection(ACTIVITIES).document(activityId)
+        val membership = db.collection(USERS)
+            .document(userId)
+            .collection(JOINED_ACTIVITIES)
+            .document(activityId)
 
         return db.runTransaction { transaction ->
-            val snapshot = transaction.get(reference)
-            val organizerId = snapshot.getString("organizerId").orEmpty()
-            val participantIds = (snapshot.get("participantIds") as? List<*>)
-                .orEmpty()
-                .filterIsInstance<String>()
-                .toMutableList()
+            val activitySnapshot = transaction.get(activity)
+            val membershipSnapshot = transaction.get(membership)
 
+            val organizerId = activitySnapshot.getString("organizerId").orEmpty()
             if (organizerId == userId) {
                 return@runTransaction true
             }
 
-            val isCurrentlyJoined = participantIds.contains(userId)
-            if (isCurrentlyJoined) {
-                participantIds.removeAll { it == userId }
-            } else {
-                participantIds.add(userId)
-            }
+            val joinedCount = (activitySnapshot.getLong("joinedCount") ?: 1L).toInt()
 
-            transaction.update(
-                reference,
-                mapOf(
-                    "participantIds" to participantIds.distinct(),
-                    "updatedAt" to FieldValue.serverTimestamp()
+            if (membershipSnapshot.exists()) {
+                transaction.delete(membership)
+                transaction.update(
+                    activity,
+                    mapOf(
+                        "joinedCount" to maxOf(1, joinedCount - 1),
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
                 )
-            )
-
-            !isCurrentlyJoined
+                false
+            } else {
+                transaction.set(
+                    membership,
+                    mapOf(
+                        "activityId" to activityId,
+                        "joinedAt" to FieldValue.serverTimestamp()
+                    )
+                )
+                transaction.update(
+                    activity,
+                    mapOf(
+                        "joinedCount" to joinedCount + 1,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                )
+                true
+            }
         }.awaitResult()
     }
 
     private companion object {
         const val ACTIVITIES = "activities"
+        const val USERS = "users"
+        const val JOINED_ACTIVITIES = "joinedActivities"
     }
 }
 
