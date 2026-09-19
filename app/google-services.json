@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "587313002355",
+    "project_id": "connect-dae99",
+    "storage_bucket": "connect-dae99.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:587313002355:android:8e3296ad1c7836e6603706",
+        "android_client_info": {
+          "package_name": "com.connectapp.npl"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbLr_izjNHFLb6XR7JsMPZfnRHt4hKsv4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
