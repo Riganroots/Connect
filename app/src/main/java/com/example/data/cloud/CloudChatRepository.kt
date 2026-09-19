@@ -83,7 +83,7 @@ class CloudChatRepository(context: Context) {
 
         val data = mapOf<String, Any>(
             "senderId" to senderId,
-            "senderName" to senderName.trim().ifBlank { "Connect Member" },
+            "senderName" to senderName.trim().ifBlank { "Connect Member" }.take(MAX_SENDER_NAME_LENGTH),
             "text" to cleanText.take(MAX_MESSAGE_LENGTH),
             "createdAt" to FieldValue.serverTimestamp()
         )
@@ -100,6 +100,7 @@ class CloudChatRepository(context: Context) {
         const val ACTIVITIES = "activities"
         const val MESSAGES = "messages"
         const val MAX_MESSAGE_LENGTH = 1000
+        const val MAX_SENDER_NAME_LENGTH = 80
     }
 }
 
