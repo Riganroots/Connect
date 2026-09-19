@@ -58,6 +58,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
     val filteredSpots by viewModel.discoverSpots.collectAsStateWithLifecycle()
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
     val cloudActivityError by viewModel.cloudActivityError.collectAsStateWithLifecycle()
+    val cloudCommunityError by viewModel.cloudCommunityError.collectAsStateWithLifecycle()
 
     var showAvailabilityPost by remember { mutableStateOf(false) }
     var subTabSelected by remember { mutableStateOf(0) } // 0 = Discover Guide, 1 = Live Community Feed
@@ -729,6 +730,44 @@ fun HomeScreen(viewModel: ConnectViewModel) {
 
                 Spacer(modifier = Modifier.height(4.dp))
 
+                if (cloudCommunityError != null) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFFFF3E0),
+                        border = BorderStroke(1.dp, Color(0xFFFFCC80))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = Color(0xFFE65100),
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "Community sync temporarily unavailable",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = ConnectGrayDark
+                                )
+                                Text(
+                                    text = cloudCommunityError ?: "Please try again.",
+                                    fontSize = 9.sp,
+                                    color = ConnectGrayMedium,
+                                    lineHeight = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
                 if (availabilities.isEmpty()) {
                     Box(
                         modifier = Modifier
@@ -763,7 +802,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
             // 4. Hot Recommended Communities/Groups
             item {
                 Text(
-                    text = "Tribes & Groups in Kathmandu",
+                    text = "Communities & Groups",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp),
