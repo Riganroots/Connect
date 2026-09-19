@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class AuthUiState(
     val isFirebaseConfigured: Boolean,
@@ -119,7 +120,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             if (!userId.isNullOrBlank()) {
-                pushTokenRegistrar.unregisterCurrentToken(userId)
+                withTimeoutOrNull(2_500L) {
+                    pushTokenRegistrar.unregisterCurrentToken(userId)
+                }
             }
 
             gateway.signOut()
