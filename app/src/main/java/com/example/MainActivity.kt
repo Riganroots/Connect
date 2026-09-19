@@ -49,6 +49,8 @@ import com.example.data.models.Availability
 import com.example.data.models.Group
 import com.example.data.models.Plan
 import com.example.data.models.UserProfile
+import com.example.auth.AuthViewModel
+import com.example.ui.auth.AuthGate
 import com.example.ui.theme.*
 import com.example.ui.components.AppHeader
 import com.example.ui.components.ConnectBottomNavigation
@@ -62,17 +64,20 @@ import com.example.ui.viewmodel.kathmanduDiscoverSpots
 
 class MainActivity : ComponentActivity() {
     private val viewModel: ConnectViewModel by viewModels()
+    private val authViewModel: AuthViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize()
-                ) { innerPadding ->
-                    Box(modifier = Modifier.padding(innerPadding)) {
-                        ConnectApp(viewModel = viewModel)
+                AuthGate(viewModel = authViewModel) {
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize()
+                    ) { innerPadding ->
+                        Box(modifier = Modifier.padding(innerPadding)) {
+                            ConnectApp(viewModel = viewModel)
+                        }
                     }
                 }
             }
