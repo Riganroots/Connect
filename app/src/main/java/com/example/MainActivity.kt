@@ -175,8 +175,15 @@ fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit) {
 fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSignOut: () -> Unit) {
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
     val plans by viewModel.allPlans.collectAsStateWithLifecycle()
+    val currentUserId by viewModel.currentUserId.collectAsStateWithLifecycle()
 
-    val myPublishedPlans = plans.filter { it.organizerName == (profile?.name ?: "Connect Member") }
+    val myPublishedPlans = plans.filter { plan ->
+        if (plan.cloudId.isNotBlank()) {
+            plan.organizerId == currentUserId
+        } else {
+            plan.organizerName == (profile?.name ?: "Connect Member")
+        }
+    }
     val myJoinedPlans = plans.filter { it.isJoinedByMe }
     val mySavedPlans = plans.filter { it.isSaved }
 
