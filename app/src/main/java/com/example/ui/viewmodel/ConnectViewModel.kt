@@ -441,6 +441,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             }
 
             groupMembershipJob = viewModelScope.launch {
+                repository.syncGroupMemberships(emptySet())
                 cloudCommunityRepository.observeGroupMemberships(stableId)
                     .catch { error ->
                         cloudCommunityError.value = error.localizedMessage ?: "Could not load community memberships."
