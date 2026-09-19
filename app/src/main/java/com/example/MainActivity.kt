@@ -76,7 +76,7 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize()
                     ) { innerPadding ->
                         Box(modifier = Modifier.padding(innerPadding)) {
-                            ConnectApp(viewModel = viewModel)
+                            ConnectApp(viewModel = viewModel, onSignOut = authViewModel::signOut)
                         }
                     }
                 }
@@ -86,7 +86,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun ConnectApp(viewModel: ConnectViewModel) {
+fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit) {
     val currentScreen by viewModel.currentScreen.collectAsStateWithLifecycle()
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
 
@@ -135,7 +135,8 @@ fun ConnectApp(viewModel: ConnectViewModel) {
                     is Screen.Profile -> {
                         ProfileScreen(
                             viewModel = viewModel,
-                            onEditProfile = { showProfileCreator = true }
+                            onEditProfile = { showProfileCreator = true },
+                            onSignOut = onSignOut
                         )
                     }
                     is Screen.ChatDetail -> {
@@ -163,7 +164,7 @@ fun ConnectApp(viewModel: ConnectViewModel) {
 
 // ======================== HOME SCREEN ========================
 @Composable
-fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit) {
+fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSignOut: () -> Unit) {
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
     val plans by viewModel.allPlans.collectAsStateWithLifecycle()
 
@@ -378,6 +379,13 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit) {
                         modifier = Modifier.height(34.dp)
                     ) {
                         Text("Config Profile", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    TextButton(
+                        onClick = onSignOut,
+                        colors = ButtonDefaults.textButtonColors(contentColor = ConnectGrayMedium)
+                    ) {
+                        Text("Sign out / Exit preview", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
