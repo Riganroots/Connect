@@ -56,6 +56,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
     val activeCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val activeNeighborhood by viewModel.selectedNeighborhood.collectAsStateWithLifecycle()
     val filteredSpots by viewModel.discoverSpots.collectAsStateWithLifecycle()
+    val profile by viewModel.userProfile.collectAsStateWithLifecycle()
 
     var showAvailabilityPost by remember { mutableStateOf(false) }
     var subTabSelected by remember { mutableStateOf(0) } // 0 = Discover Guide, 1 = Live Community Feed
@@ -285,6 +286,68 @@ fun HomeScreen(viewModel: ConnectViewModel) {
             .background(ConnectMintLight),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = ConnectDarkGreen),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Hi, ${profile?.name?.substringBefore(" ") ?: "there"} 👋",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ConnectMint.copy(alpha = 0.9f)
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = "What do you want to do today?",
+                            fontSize = 18.sp,
+                            lineHeight = 22.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Discover a place, join a local plan, or create your own.",
+                            fontSize = 10.sp,
+                            lineHeight = 14.sp,
+                            color = ConnectMint.copy(alpha = 0.85f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    FilledTonalButton(
+                        onClick = { viewModel.navigateTo(Screen.CreatePlan) },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = ConnectMint,
+                            contentColor = ConnectDarkGreen
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Create", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+            }
+        }
+
         // 1. Search Bar Field
         item {
             Card(
