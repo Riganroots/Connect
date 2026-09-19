@@ -172,10 +172,7 @@ class ConnectRepository(private val dao: ConnectDao) {
         for (plan in plans) {
             val existing = dao.getPlanByCloudId(plan.cloudId)
             dao.insertPlan(
-                plan.copy(
-                    id = existing?.id ?: 0,
-                    isSaved = existing?.isSaved ?: false
-                )
+                plan.copy(id = existing?.id ?: 0)
             )
         }
 
