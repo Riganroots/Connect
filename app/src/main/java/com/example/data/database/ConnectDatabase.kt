@@ -8,6 +8,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.models.UserProfile
 import com.example.data.models.Plan
 import com.example.data.models.Group
@@ -35,8 +37,17 @@ interface ConnectDao {
     @Query("SELECT * FROM plans WHERE id = :id LIMIT 1")
     suspend fun getPlanById(id: Long): Plan?
 
+    @Query("SELECT * FROM plans WHERE cloudId = :cloudId LIMIT 1")
+    suspend fun getPlanByCloudId(cloudId: String): Plan?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlan(plan: Plan): Long
+
+    @Query("DELETE FROM plans WHERE cloudId != ''")
+    suspend fun deleteAllCloudPlans()
+
+    @Query("DELETE FROM plans WHERE cloudId != '' AND cloudId NOT IN (:cloudIds)")
+    suspend fun deleteCloudPlansExcept(cloudIds: List<String>)
 
     @Query("UPDATE plans SET isJoinedByMe = :isJoined, joinedCount = joinedCount + :countDiff WHERE id = :id")
     suspend fun updatePlanJoinState(id: Long, isJoined: Boolean, countDiff: Int)
@@ -103,13 +114,20 @@ interface ConnectDao {
         ChatMessage::class,
         com.example.data.models.AppNotification::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class ConnectDatabase : RoomDatabase() {
     abstract fun connectDao(): ConnectDao
 
     companion object {
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE plans ADD COLUMN cloudId TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE plans ADD COLUMN organizerId TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         @Volatile
         private var INSTANCE: ConnectDatabase? = null
 
@@ -120,7 +138,7 @@ abstract class ConnectDatabase : RoomDatabase() {
                     ConnectDatabase::class.java,
                     "connect_database"
                 )
-                .fallbackToDestructiveMigration()
+                .addMigrations(MIGRATION_1_2)
                 .build()
                 INSTANCE = instance
                 instance
@@ -144,6 +162,26 @@ class ConnectRepository(private val dao: ConnectDao) {
 
     suspend fun insertPlan(plan: Plan): Long {
         return dao.insertPlan(plan)
+    }
+
+    suspend fun clearCloudPlans() {
+        dao.deleteAllCloudPlans()
+    }
+
+    suspend fun syncCloudPlans(plans: List<Plan>) {
+        for (plan in plans) {
+            val existing = dao.getPlanByCloudId(plan.cloudId)
+            dao.insertPlan(
+                plan.copy(id = existing?.id ?: 0)
+            )
+        }
+
+        val cloudIds = plans.map { it.cloudId }.filter { it.isNotBlank() }
+        if (cloudIds.isEmpty()) {
+            dao.deleteAllCloudPlans()
+        } else {
+            dao.deleteCloudPlansExcept(cloudIds)
+        }
     }
 
     suspend fun toggleJoinPlan(planId: Long) {

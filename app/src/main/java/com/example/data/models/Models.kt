@@ -1,5 +1,6 @@
 package com.example.data.models
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -22,6 +23,8 @@ data class UserProfile(
 @Entity(tableName = "plans")
 data class Plan(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(defaultValue = "''") val cloudId: String = "",
+    @ColumnInfo(defaultValue = "''") val organizerId: String = "",
     val title: String,
     val category: String, // "Play", "Explore", "Meet", "Learn", "Experience"
     val location: String,

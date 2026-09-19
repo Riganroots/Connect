@@ -57,6 +57,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
     val activeNeighborhood by viewModel.selectedNeighborhood.collectAsStateWithLifecycle()
     val filteredSpots by viewModel.discoverSpots.collectAsStateWithLifecycle()
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val cloudActivityError by viewModel.cloudActivityError.collectAsStateWithLifecycle()
 
     var showAvailabilityPost by remember { mutableStateOf(false) }
     var subTabSelected by remember { mutableStateOf(0) } // 0 = Discover Guide, 1 = Live Community Feed
@@ -343,6 +344,46 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Create", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+            }
+        }
+
+        if (cloudActivityError != null) {
+            item {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFFFF3E0),
+                    border = BorderStroke(1.dp, Color(0xFFFFCC80))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = Color(0xFFE65100),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Column {
+                            Text(
+                                text = "Cloud activities are temporarily unavailable",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = ConnectGrayDark
+                            )
+                            Text(
+                                text = cloudActivityError ?: "Check your connection and try again.",
+                                fontSize = 9.sp,
+                                lineHeight = 13.sp,
+                                color = ConnectGrayMedium
+                            )
+                        }
                     }
                 }
             }
@@ -805,13 +846,13 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "No active plans found for limit filters.",
+                                text = "No activities found yet.",
                                 color = ConnectGrayDark,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Be a host! Tap \"Post Plan\" in bottom navigator to publish your plan.",
+                                text = "Create the first activity or change your search and filters.",
                                 color = ConnectGrayMedium,
                                 fontSize = 11.sp,
                                 textAlign = TextAlign.Center,

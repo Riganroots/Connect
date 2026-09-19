@@ -38,6 +38,7 @@ fun CreatePlanScreen(
     val price by viewModel.formPrice.collectAsStateWithLifecycle()
     val participants by viewModel.formParticipantsNeeded.collectAsStateWithLifecycle()
     val description by viewModel.formDescription.collectAsStateWithLifecycle()
+    val currentUserId by viewModel.currentUserId.collectAsStateWithLifecycle()
 
     var showValidation by remember { mutableStateOf(false) }
     val missingRequired = title.isBlank() || location.isBlank() || date.isBlank() || description.isBlank()
@@ -248,7 +249,11 @@ fun CreatePlanScreen(
                     Text("Publish activity", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
                 }
                 Text(
-                    "Your plan is currently saved on this device.",
+                    if (currentUserId == "preview-user") {
+                        "Preview Mode: this activity stays on this device only."
+                    } else {
+                        "This activity will be shared with signed-in Connect members."
+                    },
                     fontSize = 9.sp,
                     color = ConnectGrayMedium,
                     modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 5.dp)
