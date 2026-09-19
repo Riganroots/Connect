@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.cloud.CloudActivityRepository
 import com.example.data.cloud.CloudChatRepository
+import com.example.data.cloud.CloudCommunityRepository
 import com.example.data.database.ConnectDatabase
 import com.example.data.database.ConnectRepository
 import com.example.data.models.Availability
@@ -37,7 +38,10 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     private val repository: ConnectRepository
     private val cloudActivityRepository: CloudActivityRepository
     private val cloudChatRepository: CloudChatRepository
+    private val cloudCommunityRepository: CloudCommunityRepository
     private var cloudActivityJob: Job? = null
+    private var groupMembershipJob: Job? = null
+    private var availabilityJob: Job? = null
     private val chatStates = mutableMapOf<Long, MutableStateFlow<List<ChatMessage>>>()
     private val chatJobs = mutableMapOf<Long, Job>()
 
@@ -45,6 +49,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     val currentUserId: StateFlow<String> = activeUserId
     val cloudActivityError = MutableStateFlow<String?>(null)
     val cloudChatError = MutableStateFlow<String?>(null)
+    val cloudCommunityError = MutableStateFlow<String?>(null)
 
     // Screen navigation state
     val currentScreen = MutableStateFlow<Screen>(Screen.Home)
@@ -77,6 +82,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         repository = ConnectRepository(database.connectDao())
         cloudActivityRepository = CloudActivityRepository(application)
         cloudChatRepository = CloudChatRepository(application)
+        cloudCommunityRepository = CloudCommunityRepository(application)
 
         val sessionPlans = combine(repository.allPlans, activeUserId) { plans, userId ->
             if (userId == PREVIEW_USER_ID) {
@@ -131,8 +137,13 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         allGroups = repository.allGroups
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-        allAvailabilities = repository.allAvailabilities
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        allAvailabilities = combine(repository.allAvailabilities, activeUserId) { rows, userId ->
+            if (userId == PREVIEW_USER_ID) {
+                rows.filter { it.userId.startsWith(PREVIEW_ROW_PREFIX) }
+            } else {
+                rows.filterNot { it.userId.startsWith(PREVIEW_ROW_PREFIX) }
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
         allNotifications = repository.allNotifications
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -298,6 +309,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         if (!availabilityExist) {
             val initialAvailabilities = listOf(
                 Availability(
+                    userId = "preview-saman",
                     userName = "Saman",
                     statusText = "Free for Coffee in Jhamsikhel",
                     iconType = "Coffee",
@@ -305,6 +317,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                     isCurrentUser = false
                 ),
                 Availability(
+                    userId = "preview-lisa",
                     userName = "Lisa",
                     statusText = "Exploring Shivapuri trail",
                     iconType = "Hiking",
@@ -312,6 +325,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                     isCurrentUser = false
                 ),
                 Availability(
+                    userId = "preview-pemba",
                     userName = "Pemba",
                     statusText = "Ready for indoor futsal",
                     iconType = "Sports",
@@ -319,6 +333,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                     isCurrentUser = false
                 ),
                 Availability(
+                    userId = "preview-niraj",
                     userName = "Niraj",
                     statusText = "Let's explore Thamel street eats!",
                     iconType = "Travel",
@@ -326,6 +341,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                     isCurrentUser = false
                 ),
                 Availability(
+                    userId = "preview-alok",
                     userName = "Alok",
                     statusText = "Free for tech/startup ideas review",
                     iconType = "Networking",
@@ -407,6 +423,9 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         chatJobs.clear()
         chatStates.clear()
         cloudChatError.value = null
+        groupMembershipJob?.cancel()
+        availabilityJob?.cancel()
+        cloudCommunityError.value = null
 
         if (!isPreviewMode) {
             cloudActivityJob = viewModelScope.launch {
@@ -419,6 +438,34 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                         cloudActivityError.value = null
                         repository.syncCloudPlans(plans)
                     }
+            }
+
+            groupMembershipJob = viewModelScope.launch {
+                repository.syncGroupMemberships(emptySet())
+                cloudCommunityRepository.observeGroupMemberships(stableId)
+                    .catch { error ->
+                        cloudCommunityError.value = error.localizedMessage ?: "Could not load community memberships."
+                    }
+                    .collect { groupIds ->
+                        cloudCommunityError.value = null
+                        repository.syncGroupMemberships(groupIds)
+                    }
+            }
+
+            availabilityJob = viewModelScope.launch {
+                repository.clearCloudAvailabilities()
+                cloudCommunityRepository.observeAvailability(stableId)
+                    .catch { error ->
+                        cloudCommunityError.value = error.localizedMessage ?: "Could not load live availability."
+                    }
+                    .collect { rows ->
+                        cloudCommunityError.value = null
+                        repository.syncCloudAvailabilities(rows)
+                    }
+            }
+        } else {
+            viewModelScope.launch {
+                repository.syncGroupMemberships(PREVIEW_GROUP_MEMBERSHIPS)
             }
         }
 
@@ -468,34 +515,74 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // Toggle Group Membership
+    // Community membership: private Firestore state for real users, local state in Preview Mode.
     fun toggleGroupMembership(groupId: String, currentMember: Boolean) {
         viewModelScope.launch {
-            repository.updateGroupMembershipDirect(groupId, !currentMember)
+            val userId = activeUserId.value
+            if (userId == PREVIEW_USER_ID) {
+                repository.setGroupMembership(groupId, !currentMember)
+            } else {
+                cloudCommunityRepository.toggleGroupMembership(groupId, userId)
+                    .onFailure {
+                        cloudCommunityError.value = it.localizedMessage ?: "Could not update community membership."
+                    }
+                    .onSuccess {
+                        cloudCommunityError.value = null
+                    }
+            }
         }
     }
 
-    // Add Self Live Availability Status
+    // Shared Available Now for real users; device-only in Preview Mode.
     fun setUserAvailableNow(status: String, selectedIconType: String) {
         viewModelScope.launch {
+            val userId = activeUserId.value
             val profileName = userProfile.value?.name ?: "Connect Member"
-            repository.insertAvailability(
-                Availability(
-                    userName = "$profileName (You)",
-                    statusText = status,
-                    iconType = selectedIconType,
-                    timeAgo = "Just now",
-                    isCurrentUser = true
+
+            if (userId == PREVIEW_USER_ID) {
+                repository.insertAvailability(
+                    Availability(
+                        userId = PREVIEW_USER_ID,
+                        userName = "$profileName (You)",
+                        statusText = status.take(35),
+                        iconType = selectedIconType,
+                        timeAgo = "Just now",
+                        isCurrentUser = true,
+                        isUserVerified = false,
+                        updatedAtMillis = System.currentTimeMillis()
+                    )
                 )
-            )
+            } else {
+                cloudCommunityRepository.setAvailableNow(
+                    userId = userId,
+                    userName = profileName,
+                    statusText = status,
+                    iconType = selectedIconType
+                )
+                    .onFailure {
+                        cloudCommunityError.value = it.localizedMessage ?: "Could not go live."
+                    }
+                    .onSuccess {
+                        cloudCommunityError.value = null
+                    }
+            }
         }
     }
 
-    // Clear Self Live Availability
     fun removeUserAvailableNow() {
         viewModelScope.launch {
-            val profileName = userProfile.value?.name ?: "Connect Member"
-            repository.deleteAvailability("$profileName (You)")
+            val userId = activeUserId.value
+            if (userId == PREVIEW_USER_ID) {
+                repository.deleteAvailability(PREVIEW_USER_ID)
+            } else {
+                cloudCommunityRepository.removeAvailableNow(userId)
+                    .onFailure {
+                        cloudCommunityError.value = it.localizedMessage ?: "Could not go offline."
+                    }
+                    .onSuccess {
+                        cloudCommunityError.value = null
+                    }
+            }
         }
     }
 
@@ -707,19 +794,21 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             )
             repository.updateProfile(updated)
 
-            // Update all hosted plans to be verified instantly
-            repository.updatePlansVerificationStatus(updated.name, true)
-
-            // If user has active live availability, update it too with verification check
-            repository.insertAvailability(
-                Availability(
-                    userName = "${updated.name} (You)",
-                    statusText = "Ready to meet - Verified Member",
-                    iconType = "Coffee",
-                    isCurrentUser = true,
-                    isUserVerified = true
+            // Prototype verification must never affect real cloud trust state.
+            if (activeUserId.value == PREVIEW_USER_ID) {
+                repository.updatePlansVerificationStatus(updated.name, true)
+                repository.insertAvailability(
+                    Availability(
+                        userId = PREVIEW_USER_ID,
+                        userName = "${updated.name} (You)",
+                        statusText = "Ready to meet - Preview verification",
+                        iconType = "Coffee",
+                        isCurrentUser = true,
+                        isUserVerified = true,
+                        updatedAtMillis = System.currentTimeMillis()
+                    )
                 )
-            )
+            }
 
             // Insert matching Success Notification for complete trust transparency
             repository.insertNotification(
@@ -744,10 +833,10 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             )
             repository.updateProfile(updated)
             
-            // Revert all hosted plans back to unverified status
-            repository.updatePlansVerificationStatus(updated.name, false)
-            
-            repository.deleteAvailability("${updated.name} (You)")
+            if (activeUserId.value == PREVIEW_USER_ID) {
+                repository.updatePlansVerificationStatus(updated.name, false)
+                repository.deleteAvailability(PREVIEW_USER_ID)
+            }
 
             repository.insertNotification(
                 com.example.data.models.AppNotification(
@@ -1031,3 +1120,5 @@ val kathmanduDiscoverSpots = listOf(
 
 
 private const val PREVIEW_USER_ID = "preview-user"
+private const val PREVIEW_ROW_PREFIX = "preview-"
+private val PREVIEW_GROUP_MEMBERSHIPS = setOf("hiking_group", "nepal_explorers")

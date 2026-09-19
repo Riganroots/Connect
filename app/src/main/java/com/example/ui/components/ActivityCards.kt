@@ -62,7 +62,7 @@ fun GroupCard(gp: Group, onJoinToggle: () -> Unit) {
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${gp.membersCount} members",
+                        text = if (gp.isMember) "Joined community" else "Community",
                         fontSize = 10.sp,
                         color = ConnectGrayMedium
                     )
