@@ -54,12 +54,14 @@ data class Group(
 
 @Entity(tableName = "availability")
 data class Availability(
-    @PrimaryKey val userName: String,
+    @PrimaryKey val userId: String,
+    val userName: String,
     val statusText: String,
     val iconType: String, // "Coffee", "Sports", "Hiking", "Travel", "Networking"
     val timeAgo: String = "Just now",
     val isCurrentUser: Boolean = false,
-    val isUserVerified: Boolean = false
+    val isUserVerified: Boolean = false,
+    val updatedAtMillis: Long = 0L
 )
 
 @Entity(tableName = "chats")
