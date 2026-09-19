@@ -518,6 +518,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     fun getChatsForPlan(planId: Long): StateFlow<List<ChatMessage>> {
         chatStates[planId]?.let { return it }
 
+        cloudChatError.value = null
         val state = MutableStateFlow<List<ChatMessage>>(emptyList())
         chatStates[planId] = state
 
