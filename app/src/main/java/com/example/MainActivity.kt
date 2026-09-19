@@ -1464,7 +1464,11 @@ fun ChatDetailScreen(
             ) {
                 OutlinedTextField(
                     value = userMessage,
-                    onValueChange = { userMessage = it },
+                    onValueChange = { value ->
+                        if (value.length <= 1000) {
+                            userMessage = value
+                        }
+                    },
                     placeholder = { Text("Ask about dates, equipment, or details...") },
                     modifier = Modifier.weight(1f),
                     colors = TextFieldDefaults.colors(
