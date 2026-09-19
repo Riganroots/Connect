@@ -65,8 +65,11 @@ interface ConnectDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertGroups(groups: List<Group>)
 
-    @Query("UPDATE groups SET isMember = :isMember, membersCount = membersCount + :countDiff WHERE id = :id")
-    suspend fun updateGroupMembership(id: String, isMember: Boolean, countDiff: Int)
+    @Query("UPDATE groups SET isMember = :isMember WHERE id = :id")
+    suspend fun setGroupMembership(id: String, isMember: Boolean)
+
+    @Query("UPDATE groups SET isMember = 0")
+    suspend fun clearGroupMemberships()
 
     // Live Availability ("Available Now")
     @Query("SELECT * FROM availability")
@@ -78,8 +81,11 @@ interface ConnectDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAvailabilities(availabilities: List<Availability>)
 
-    @Query("DELETE FROM availability WHERE userName = :userName")
-    suspend fun deleteAvailability(userName: String)
+    @Query("DELETE FROM availability WHERE userId = :userId")
+    suspend fun deleteAvailability(userId: String)
+
+    @Query("DELETE FROM availability WHERE userId NOT LIKE 'preview-%'")
+    suspend fun deleteCloudAvailabilities()
 
     // Chats
     @Query("SELECT * FROM chats WHERE planId = :planId ORDER BY timestamp ASC")
@@ -114,7 +120,7 @@ interface ConnectDao {
         ChatMessage::class,
         com.example.data.models.AppNotification::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class ConnectDatabase : RoomDatabase() {
@@ -128,6 +134,40 @@ abstract class ConnectDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS availability_new (
+                        userId TEXT NOT NULL,
+                        userName TEXT NOT NULL,
+                        statusText TEXT NOT NULL,
+                        iconType TEXT NOT NULL,
+                        timeAgo TEXT NOT NULL,
+                        isCurrentUser INTEGER NOT NULL,
+                        isUserVerified INTEGER NOT NULL,
+                        updatedAtMillis INTEGER NOT NULL,
+                        PRIMARY KEY(userId)
+                    )
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    """
+                    INSERT INTO availability_new (
+                        userId, userName, statusText, iconType, timeAgo,
+                        isCurrentUser, isUserVerified, updatedAtMillis
+                    )
+                    SELECT
+                        'preview-' || userName, userName, statusText, iconType, timeAgo,
+                        isCurrentUser, isUserVerified, 0
+                    FROM availability
+                    """.trimIndent()
+                )
+                database.execSQL("DROP TABLE availability")
+                database.execSQL("ALTER TABLE availability_new RENAME TO availability")
+            }
+        }
+
         @Volatile
         private var INSTANCE: ConnectDatabase? = null
 
@@ -138,7 +178,7 @@ abstract class ConnectDatabase : RoomDatabase() {
                     ConnectDatabase::class.java,
                     "connect_database"
                 )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
                 INSTANCE = instance
                 instance
@@ -206,17 +246,32 @@ class ConnectRepository(private val dao: ConnectDao) {
         // But let's keep it clean
     }
 
-    suspend fun updateGroupMembershipDirect(groupId: String, isMember: Boolean) {
-        val diff = if (isMember) 1 else -1
-        dao.updateGroupMembership(groupId, isMember, diff)
+    suspend fun syncGroupMemberships(groupIds: Set<String>) {
+        dao.clearGroupMemberships()
+        groupIds.forEach { groupId ->
+            dao.setGroupMembership(groupId, true)
+        }
+    }
+
+    suspend fun setGroupMembership(groupId: String, isMember: Boolean) {
+        dao.setGroupMembership(groupId, isMember)
     }
 
     suspend fun insertAvailability(availability: Availability) {
         dao.insertAvailability(availability)
     }
 
-    suspend fun deleteAvailability(userName: String) {
-        dao.deleteAvailability(userName)
+    suspend fun deleteAvailability(userId: String) {
+        dao.deleteAvailability(userId)
+    }
+
+    suspend fun clearCloudAvailabilities() {
+        dao.deleteCloudAvailabilities()
+    }
+
+    suspend fun syncCloudAvailabilities(availabilities: List<Availability>) {
+        dao.deleteCloudAvailabilities()
+        dao.insertAvailabilities(availabilities)
     }
 
     suspend fun insertGroups(groups: List<Group>) {
