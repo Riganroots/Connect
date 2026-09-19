@@ -151,10 +151,10 @@ exports.notifyHostWhenActivityJoined = onDocumentCreated(
     const joiningUserId = event.params.userId;
     const activityId = event.params.activityId;
 
-    const [activitySnapshot, userSnapshot] = await Promise.all([
-      db.collection("activities").doc(activityId).get(),
-      db.collection("users").doc(joiningUserId).get(),
-    ]);
+    const activitySnapshot = await db
+      .collection("activities")
+      .doc(activityId)
+      .get();
 
     if (!activitySnapshot.exists) return;
 
@@ -169,13 +169,9 @@ exports.notifyHostWhenActivityJoined = onDocumentCreated(
 
     const activityTitle =
       activitySnapshot.get("title") || "your activity";
-    const displayName =
-      (userSnapshot.exists && userSnapshot.get("displayName")) ||
-      "A Connect member";
-
     await sendToUser(organizerId, {
       title: "New activity member",
-      body: `${displayName} joined ${activityTitle}.`,
+      body: `Someone joined ${activityTitle}.`,
       type: "activity_join",
       targetId: activityId,
     });
