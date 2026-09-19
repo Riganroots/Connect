@@ -1381,7 +1381,7 @@ fun ChatDetailScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                imageVector = Icons.Default.ChatBubbleOutline,
+                                imageVector = Icons.Default.Send,
                                 contentDescription = null,
                                 tint = ConnectGrayMedium,
                                 modifier = Modifier.size(36.dp)
