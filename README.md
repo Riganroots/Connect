@@ -8,6 +8,14 @@ This repository is currently being prepared for production development. The app 
 
 Current product data is primarily local/on-device. Real authentication, backend sync, real-time chat, push notifications, and production identity verification are planned work.
 
+## App identity
+
+- Display name: **Connect**
+- Android application ID: `com.connectapp.npl`
+- Current internal-testing version: `0.1.0` (version code 1)
+
+The application ID is intended to remain permanent for Google Play releases.
+
 ## Local setup
 
 ### Requirements
