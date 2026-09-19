@@ -150,392 +150,6 @@ fun ConnectApp(viewModel: ConnectViewModel) {
     }
 }
 
-@Composable
-fun AppHeader(
-    profile: UserProfile?,
-    viewModel: ConnectViewModel,
-    onConfigureProfile: () -> Unit
-) {
-    val notifications by viewModel.allNotifications.collectAsStateWithLifecycle()
-    var showNotifDrawer by remember { mutableStateOf(false) }
-
-    if (showNotifDrawer) {
-        AlertDialog(
-            onDismissRequest = { showNotifDrawer = false },
-            confirmButton = {
-                TextButton(onClick = { showNotifDrawer = false }) {
-                    Text("Close", color = ConnectDarkGreen, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                if (notifications.isNotEmpty()) {
-                    TextButton(onClick = { viewModel.clearAllNotifications() }) {
-                        Text("Clear All", color = ConnectError, fontWeight = FontWeight.Bold)
-                    }
-                }
-            },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Alerts list",
-                        tint = ConnectDarkGreen,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Notifications & Reminders",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = ConnectGrayDark
-                    )
-                }
-            },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 350.dp)
-                ) {
-                    if (notifications.isEmpty()) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "No notifications logo",
-                                tint = ConnectGrayMedium.copy(alpha = 0.5f),
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "All Caught Up!",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ConnectGrayDark
-                            )
-                            Text(
-                                text = "Calendar reminders and trust updates will list here when they occur.",
-                                fontSize = 11.sp,
-                                color = ConnectGrayMedium,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(start = 16.dp, top = 4.dp, end = 16.dp)
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(notifications) { notif ->
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(containerColor = ConnectCream),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(12.dp),
-                                        verticalAlignment = Alignment.Top,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        val icon = when (notif.systemCategory) {
-                                            "Reminder" -> Icons.Default.DateRange
-                                            "Verification" -> Icons.Default.CheckCircle
-                                            "Recommendation" -> Icons.Default.LocationOn
-                                            else -> Icons.Default.Notifications
-                                        }
-                                        val tint = when (notif.systemCategory) {
-                                            "Reminder" -> ConnectBlue
-                                            "Verification" -> Color(0xFF48BB78)
-                                            "Recommendation" -> ConnectGold
-                                            else -> ConnectGrayMedium
-                                        }
-
-                                        Row(modifier = Modifier.weight(1f)) {
-                                            Icon(
-                                                imageVector = icon,
-                                                contentDescription = notif.systemCategory,
-                                                tint = tint,
-                                                modifier = Modifier
-                                                    .size(18.dp)
-                                                    .padding(top = 1.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Column {
-                                                Text(
-                                                    text = notif.title,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = ConnectGrayDark
-                                                )
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Text(
-                                                    text = notif.description,
-                                                    fontSize = 10.sp,
-                                                    color = ConnectGrayMedium,
-                                                    lineHeight = 13.sp
-                                                )
-                                            }
-                                        }
-
-                                        IconButton(
-                                            onClick = { viewModel.deleteNotification(notif.id) },
-                                            modifier = Modifier.size(24.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Clear single alert",
-                                                tint = ConnectGrayMedium.copy(alpha = 0.7f),
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            shape = RoundedCornerShape(24.dp),
-            containerColor = ConnectMintLight
-        )
-    }
-
-    Surface(
-        color = ConnectDarkGreen,
-        contentColor = Color.White,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = "Connect",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = ConnectMint,
-                        letterSpacing = 0.5.sp
-                    )
-                    Text(
-                        text = "“I have a plan. Who wants to join?”",
-                        fontSize = 11.sp,
-                        fontStyle = FontStyle.Italic,
-                        color = ConnectMint.copy(alpha = 0.85f),
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // Notification Icon Bell
-                    Box(modifier = Modifier.wrapContentSize()) {
-                        IconButton(
-                            onClick = { showNotifDrawer = true },
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(ConnectMidGreen)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = "Show Connect Alerts",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        if (notifications.isNotEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(10.dp)
-                                    .background(Color(0xFFE53E3E), CircleShape)
-                                    .border(1.5.dp, Color.White, CircleShape)
-                            )
-                        }
-                    }
-
-                    // Mini Profile Pill
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(ConnectMidGreen)
-                            .clickable { onConfigureProfile() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .background(if (profile?.isVerified == true) Color(0xFF48BB78) else Color.Green, CircleShape)
-                                .border(1.dp, ConnectWhite, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (profile?.isVerified == true) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Verified Local check",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(10.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = profile?.name ?: "Ayush",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Sub-bar with active location & active traveler pill
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = "Pin icon",
-                        tint = ConnectMint,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = profile?.location ?: "Kathmandu, Nepal",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                }
-
-                if (profile?.isTravellerMode == true) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(ConnectMint.copy(alpha = 0.25f))
-                            .border(1.dp, ConnectMint, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = "Star guide icon",
-                                tint = ConnectMint,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Traveller Mode",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ConnectMint
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ConnectBottomNavigation(
-    currentScreen: Screen,
-    onNavigate: (Screen) -> Unit
-) {
-    Surface(
-        color = Color.White,
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(12.dp, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
-        tonalElevation = 6.dp
-    ) {
-        NavigationBar(
-            containerColor = Color.White,
-            modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
-        ) {
-            NavigationBarItem(
-                selected = currentScreen is Screen.Home,
-                onClick = { onNavigate(Screen.Home) },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Explore Hub"
-                    )
-                },
-                label = { Text("Discover", fontWeight = FontWeight.Bold) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = ConnectWhite,
-                    selectedTextColor = ConnectDarkGreen,
-                    indicatorColor = ConnectDarkGreen,
-                    unselectedIconColor = ConnectGrayMedium,
-                    unselectedTextColor = ConnectGrayMedium
-                )
-            )
-
-            NavigationBarItem(
-                selected = currentScreen is Screen.CreatePlan,
-                onClick = { onNavigate(Screen.CreatePlan) },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Create Plan"
-                    )
-                },
-                label = { Text("Post Plan", fontWeight = FontWeight.Bold) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = ConnectWhite,
-                    selectedTextColor = ConnectDarkGreen,
-                    indicatorColor = ConnectDarkGreen,
-                    unselectedIconColor = ConnectGrayMedium,
-                    unselectedTextColor = ConnectGrayMedium
-                )
-            )
-
-            NavigationBarItem(
-                selected = currentScreen is Screen.Profile,
-                onClick = { onNavigate(Screen.Profile) },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "My profile"
-                    )
-                },
-                label = { Text("My Profile", fontWeight = FontWeight.Bold) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = ConnectWhite,
-                    selectedTextColor = ConnectDarkGreen,
-                    indicatorColor = ConnectDarkGreen,
-                    unselectedIconColor = ConnectGrayMedium,
-                    unselectedTextColor = ConnectGrayMedium
-                )
-            )
-        }
-    }
-}
-
-// ======================== HOME SCREEN ========================
 // ======================== HOME SCREEN ========================
 @Composable
 fun HomeScreen(viewModel: ConnectViewModel) {
@@ -789,13 +403,25 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { viewModel.searchQuery.value = it },
-                    placeholder = { Text("Search sports, hiking, cafes in Kathmandu...") },
+                    placeholder = { Text("Search plans, places or activities") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search"
                         )
                     },
+                    trailingIcon = {
+                        if (searchQuery.isNotBlank()) {
+                            IconButton(onClick = { viewModel.searchQuery.value = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear search",
+                                    tint = ConnectGrayMedium
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(2.dp),
@@ -824,7 +450,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                     onClick = { subTabSelected = 0 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("🔍 Explore Guide", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("Explore", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     },
                     selectedContentColor = ConnectDarkGreen,
@@ -835,7 +461,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                     onClick = { subTabSelected = 1 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("📅 Community Feed", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("Community", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     },
                     selectedContentColor = ConnectDarkGreen,
@@ -1084,12 +710,21 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                     }
 
                     val hasMyAvailability = availabilities.any { it.isCurrentUser }
-                    if (hasMyAvailability) {
-                        viewModel.removeUserAvailableNow()
-                    } else {
-                        TextButton(onClick = { showAvailabilityPost = true }) {
-                            Text("+ Go Live", color = ConnectDarkGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    TextButton(
+                        onClick = {
+                            if (hasMyAvailability) {
+                                viewModel.removeUserAvailableNow()
+                            } else {
+                                showAvailabilityPost = true
+                            }
                         }
+                    ) {
+                        Text(
+                            text = if (hasMyAvailability) "Go Offline" else "+ Go Live",
+                            color = if (hasMyAvailability) ConnectError else ConnectDarkGreen,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
                     }
                 }
 
