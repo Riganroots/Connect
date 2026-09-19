@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -29,6 +30,8 @@ sealed class Screen {
 class ConnectViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: ConnectRepository
+    private val activeUserId = MutableStateFlow(PREVIEW_USER_ID)
+    val currentUserId: StateFlow<String> = activeUserId
 
     // Screen navigation state
     val currentScreen = MutableStateFlow<Screen>(Screen.Home)
@@ -98,7 +101,8 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-        userProfile = repository.userProfile
+        userProfile = activeUserId
+            .flatMapLatest { userId -> repository.userProfile(userId) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
         allGroups = repository.allGroups
@@ -146,22 +150,6 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun seedDatabaseIfEmpty() {
-        // Seed profile if not exists
-        val currentProfile = repository.getProfileDirect()
-        if (currentProfile == null) {
-            repository.updateProfile(
-                UserProfile(
-                    id = "ayush",
-                    name = "Ayush",
-                    location = "Kathmandu, Nepal",
-                    isTravellerMode = false,
-                    rating = 4.8,
-                    bio = "Young professional based in Kathmandu. Up for local culinary walks, early morning trail runs, and weekend futsal. Let's Connect!",
-                    interests = "Hiking 🏔️, Food Walk 🥟, Futsal ⚽, Live Music 🎸"
-                )
-            )
-        }
-
         // Seed plans if none exist
         val plansExist = repository.allPlans.first().isNotEmpty()
         if (!plansExist) {
@@ -377,6 +365,40 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun activateUser(
+        userId: String,
+        suggestedName: String,
+        isPreviewMode: Boolean
+    ) {
+        val stableId = userId.ifBlank { PREVIEW_USER_ID }
+        activeUserId.value = stableId
+
+        viewModelScope.launch {
+            val existing = repository.getProfileDirect(stableId)
+            if (existing == null) {
+                repository.updateProfile(
+                    UserProfile(
+                        id = stableId,
+                        name = if (isPreviewMode) "Preview User" else suggestedName.ifBlank { "Connect Member" },
+                        location = "Kathmandu, Nepal",
+                        isTravellerMode = false,
+                        rating = if (isPreviewMode) 4.8 else 0.0,
+                        bio = if (isPreviewMode) {
+                            "Preview profile for testing Connect features on this device."
+                        } else {
+                            ""
+                        },
+                        interests = if (isPreviewMode) {
+                            "Hiking 🏔️, Food Walk 🥟, Futsal ⚽"
+                        } else {
+                            ""
+                        }
+                    )
+                )
+            }
+        }
+    }
+
     // Toggle Saved Status
     fun toggleSavePlan(planId: Long) {
         viewModelScope.launch {
@@ -394,7 +416,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     // Add Self Live Availability Status
     fun setUserAvailableNow(status: String, selectedIconType: String) {
         viewModelScope.launch {
-            val profileName = userProfile.value?.name ?: "Ayush"
+            val profileName = userProfile.value?.name ?: "Connect Member"
             repository.insertAvailability(
                 Availability(
                     userName = "$profileName (You)",
@@ -410,7 +432,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     // Clear Self Live Availability
     fun removeUserAvailableNow() {
         viewModelScope.launch {
-            val profileName = userProfile.value?.name ?: "Ayush"
+            val profileName = userProfile.value?.name ?: "Connect Member"
             repository.deleteAvailability("$profileName (You)")
         }
     }
@@ -418,10 +440,10 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     // Update profile settings
     fun updateProfileInfo(name: String, bio: String, isTraveller: Boolean, interests: String) {
         viewModelScope.launch {
-            val p = userProfile.value ?: UserProfile()
+            val p = userProfile.value ?: UserProfile(id = activeUserId.value, name = "Connect Member")
             repository.updateProfile(
                 p.copy(
-                    name = name.ifBlank { "Ayush" },
+                    name = name.ifBlank { "Connect Member" },
                     bio = bio,
                     isTravellerMode = isTraveller,
                     interests = interests
@@ -460,7 +482,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             repository.sendChatMessage(
                 ChatMessage(
                     planId = planId,
-                    senderName = "Ayush (You)",
+                    senderName = "${userProfile.value?.name ?: "Connect Member"} (You)",
                     messageText = text,
                     isMe = true,
                     timestamp = System.currentTimeMillis()
@@ -498,7 +520,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                 pricePerPerson = price.ifBlank { "Free" },
                 participantsNeeded = neededInt,
                 description = description,
-                organizerName = selfProfile?.name ?: "Ayush",
+                organizerName = selfProfile?.name ?: "Connect Member",
                 organizerRating = selfProfile?.rating ?: 4.8,
                 joinedCount = 1,
                 isJoinedByMe = true, // You auto-joined your own plan
@@ -552,11 +574,11 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     // Verify User Account via Phone Check / simple ID submission
     fun submitUserPhoneVerification(phoneNumber: String, nationalIdName: String, method: String = "Phone & ID Check", onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
-            val current = userProfile.value ?: UserProfile()
+            val current = userProfile.value ?: UserProfile(id = activeUserId.value, name = "Connect Member")
             val updated = current.copy(
                 isVerified = true,
                 verifiedPhone = phoneNumber,
-                verifiedNationalIdName = nationalIdName.ifBlank { "National ID Verified (Ayush)" },
+                verifiedNationalIdName = nationalIdName.ifBlank { "National ID Verified" },
                 verificationMethod = method
             )
             repository.updateProfile(updated)
@@ -589,7 +611,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
 
     fun revokeUserVerification() {
         viewModelScope.launch {
-            val current = userProfile.value ?: UserProfile()
+            val current = userProfile.value ?: UserProfile(id = activeUserId.value, name = "Connect Member")
             val updated = current.copy(
                 isVerified = false,
                 verifiedPhone = "",
@@ -882,3 +904,6 @@ val kathmanduDiscoverSpots = listOf(
     )
 )
 
+
+
+private const val PREVIEW_USER_ID = "preview-user"

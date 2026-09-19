@@ -20,10 +20,10 @@ interface ConnectDao {
 
     // Profiles
     @Query("SELECT * FROM profiles WHERE id = :id LIMIT 1")
-    fun getProfileFlow(id: String = "ayush"): Flow<UserProfile?>
+    fun getProfileFlow(id: String): Flow<UserProfile?>
 
     @Query("SELECT * FROM profiles WHERE id = :id LIMIT 1")
-    suspend fun getProfile(id: String = "ayush"): UserProfile?
+    suspend fun getProfile(id: String): UserProfile?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertProfile(profile: UserProfile)
@@ -130,12 +130,13 @@ abstract class ConnectDatabase : RoomDatabase() {
 }
 
 class ConnectRepository(private val dao: ConnectDao) {
-    val userProfile: Flow<UserProfile?> = dao.getProfileFlow()
     val allPlans: Flow<List<Plan>> = dao.getAllPlansFlow()
     val allGroups: Flow<List<Group>> = dao.getAllGroupsFlow()
     val allAvailabilities: Flow<List<Availability>> = dao.getAvailabilitiesFlow()
 
-    suspend fun getProfileDirect(): UserProfile? = dao.getProfile()
+    fun userProfile(userId: String): Flow<UserProfile?> = dao.getProfileFlow(userId)
+
+    suspend fun getProfileDirect(userId: String): UserProfile? = dao.getProfile(userId)
 
     suspend fun updateProfile(profile: UserProfile) {
         dao.insertProfile(profile)

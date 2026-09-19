@@ -71,7 +71,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
-                AuthGate(viewModel = authViewModel) {
+                AuthGate(viewModel = authViewModel) { session ->
+                    LaunchedEffect(session.userId, session.isPreviewMode) {
+                        viewModel.activateUser(
+                            userId = session.userId,
+                            suggestedName = session.suggestedName,
+                            isPreviewMode = session.isPreviewMode
+                        )
+                    }
+
                     Scaffold(
                         modifier = Modifier.fillMaxSize()
                     ) { innerPadding ->
@@ -168,7 +176,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
     val plans by viewModel.allPlans.collectAsStateWithLifecycle()
 
-    val myPublishedPlans = plans.filter { it.organizerName == (profile?.name ?: "Ayush") }
+    val myPublishedPlans = plans.filter { it.organizerName == (profile?.name ?: "Connect Member") }
     val myJoinedPlans = plans.filter { it.isJoinedByMe }
     val mySavedPlans = plans.filter { it.isSaved }
 
@@ -179,7 +187,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
     var wizardStep by remember { mutableStateOf(1) } // 1=Phone Check, 2=SMS OTP, 3=Document selection, 4=Scanner sim, 5=Badge claim
     var phoneNumber by remember { mutableStateOf("") }
     var otpCode by remember { mutableStateOf("") }
-    var idName by remember { mutableStateOf(profile?.name ?: "Ayush") }
+    var idName by remember { mutableStateOf(profile?.name ?: "Connect Member") }
     var docType by remember { mutableStateOf("Citizenship Certificate") }
     var docNumber by remember { mutableStateOf("") }
     var scanPhase by remember { mutableStateOf(0) } // 0=idle, 1=scanning, 2=done
@@ -190,7 +198,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
 
     LaunchedEffect(profile) {
         profile?.let {
-            if (idName == "Ayush" || idName.isBlank()) {
+            if (idName == "Connect Member" || idName.isBlank()) {
                 idName = it.name
             }
         }
@@ -285,7 +293,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = profile?.name ?: "Ayush",
+                            text = profile?.name ?: "Connect Member",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = ConnectGrayDark

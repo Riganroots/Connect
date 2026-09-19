@@ -27,15 +27,34 @@ import com.example.BuildConfig
 import com.example.auth.AuthViewModel
 import com.example.ui.theme.*
 
+data class ActiveAppSession(
+    val userId: String,
+    val suggestedName: String,
+    val isPreviewMode: Boolean
+)
+
 @Composable
 fun AuthGate(
     viewModel: AuthViewModel,
-    content: @Composable () -> Unit
+    content: @Composable (ActiveAppSession) -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     if (state.canEnterApp) {
-        content()
+        val session = if (state.isPreviewMode) {
+            ActiveAppSession(
+                userId = "preview-user",
+                suggestedName = "Preview User",
+                isPreviewMode = true
+            )
+        } else {
+            ActiveAppSession(
+                userId = state.user?.uid.orEmpty(),
+                suggestedName = state.user?.displayName?.takeIf { it.isNotBlank() } ?: "Connect Member",
+                isPreviewMode = false
+            )
+        }
+        content(session)
     } else {
         AuthScreen(
             isFirebaseConfigured = state.isFirebaseConfigured,
