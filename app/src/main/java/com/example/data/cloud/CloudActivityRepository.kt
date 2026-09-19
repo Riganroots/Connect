@@ -127,7 +127,7 @@ class CloudActivityRepository(context: Context) {
             "participantsNeeded" to plan.participantsNeeded,
             "description" to plan.description,
             "joinedCount" to 1,
-            "isVerifiedOrganizer" to plan.isVerifiedOrganizer,
+            "isVerifiedOrganizer" to false,
             "createdAt" to FieldValue.serverTimestamp(),
             "updatedAt" to FieldValue.serverTimestamp()
         )
