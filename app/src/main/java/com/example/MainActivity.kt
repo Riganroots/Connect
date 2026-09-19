@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -1241,6 +1242,8 @@ fun ChatDetailScreen(
 ) {
     val chatsFlow = remember(planId) { viewModel.getChatsForPlan(planId) }
     val chats by chatsFlow.collectAsStateWithLifecycle()
+    val chatError by viewModel.cloudChatError.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
 
     var hostPlan by remember { mutableStateOf<Plan?>(null) }
     var userMessage by remember { mutableStateOf("") }
@@ -1248,6 +1251,12 @@ fun ChatDetailScreen(
     // Fetch parent Plan to display host contact metadata
     LaunchedEffect(planId) {
         hostPlan = viewModel.getPlanById(planId)
+    }
+
+    LaunchedEffect(chats.size) {
+        if (chats.isNotEmpty()) {
+            listState.animateScrollToItem(chats.lastIndex)
+        }
     }
 
     Column(
@@ -1296,7 +1305,7 @@ fun ChatDetailScreen(
 
                 Column {
                     Text(
-                        text = "Plan Host: ${hostPlan?.organizerName ?: "Lisa"}",
+                        text = "Plan Host: ${hostPlan?.organizerName ?: "Host"}",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = ConnectGrayDark
@@ -1313,8 +1322,47 @@ fun ChatDetailScreen(
             }
         }
 
+        if (chatError != null) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFFFF3E0),
+                border = BorderStroke(1.dp, Color(0xFFFFCC80))
+            ) {
+                Row(
+                    modifier = Modifier.padding(10.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = Color(0xFFE65100),
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "Chat temporarily unavailable",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = ConnectGrayDark
+                        )
+                        Text(
+                            text = chatError ?: "Please try again.",
+                            fontSize = 9.sp,
+                            color = ConnectGrayMedium,
+                            lineHeight = 12.sp
+                        )
+                    }
+                }
+            }
+        }
+
         // Message Feed List block
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
@@ -1322,6 +1370,39 @@ fun ChatDetailScreen(
             contentPadding = PaddingValues(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            if (chats.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillParentMaxHeight()
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.ChatBubbleOutline,
+                                contentDescription = null,
+                                tint = ConnectGrayMedium,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "No messages yet",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ConnectGrayDark
+                            )
+                            Text(
+                                text = "Start the activity conversation.",
+                                fontSize = 10.sp,
+                                color = ConnectGrayMedium
+                            )
+                        }
+                    }
+                }
+            }
+
             items(chats) { chat ->
                 val bubbleAlign = if (chat.isMe) Alignment.End else Alignment.Start
                 val bubbleColor = if (chat.isMe) ConnectDarkGreen else ConnectCream
