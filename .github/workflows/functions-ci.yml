@@ -1,0 +1,46 @@
+name: Functions CI
+
+on:
+  push:
+    branches:
+      - main
+      - "codex/**"
+    paths:
+      - "functions/**"
+      - "firebase.json"
+      - "firestore.indexes.json"
+      - ".github/workflows/functions-ci.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "functions/**"
+      - "firebase.json"
+      - "firestore.indexes.json"
+      - ".github/workflows/functions-ci.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install function dependencies
+        run: npm install --prefix functions --no-audit --no-fund
+
+      - name: Verify Firebase modules
+        working-directory: functions
+        run: node -e "require('firebase-admin/app'); require('firebase-admin/firestore'); require('firebase-admin/messaging'); require('firebase-functions/v2/firestore'); require('firebase-functions/v2/options')"
+
+      - name: Load notification functions
+        working-directory: functions
+        run: node -e "require('./index.js')"
+
+      - name: Syntax check
+        run: npm run --prefix functions check

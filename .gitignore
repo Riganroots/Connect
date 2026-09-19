@@ -23,3 +23,8 @@ keystore.properties
 signing.properties
 service-account*.json
 google-service-account*.json
+
+# Firebase Functions
+functions/node_modules/
+functions/.env
+firebase-debug.log

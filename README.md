@@ -82,3 +82,31 @@ CI generates a compatible Gradle wrapper, runs unit tests, and assembles a debug
 ## Google AI Studio origin
 
 The initial prototype was created with Google AI Studio and has since moved into normal Android/GitHub development.
+
+
+## Firebase notification server
+
+The repository includes Firebase Cloud Functions in `functions/` for trusted push sending.
+
+Current triggers:
+
+- a new Firestore activity chat message notifies the other joined activity members;
+- a new non-host activity membership notifies the activity organizer;
+- invalid or unregistered FCM device tokens are removed automatically.
+
+The functions use the Firebase Admin SDK with the managed service identity provided by Cloud Functions. Do **not** download or commit Firebase Admin/service-account private keys for this deployment.
+
+Runtime: Node.js 22. Functions region: `asia-south1`.
+
+Before the first production deployment:
+
+1. Make sure the Firebase project is on the Blaze plan. Firebase requires Blaze to deploy Cloud Functions.
+2. Install the current Firebase CLI and authenticate interactively with `firebase login`.
+3. From the repository root, deploy the membership collection-group index:
+   `firebase deploy --only firestore:indexes`
+4. Deploy the notification functions:
+   `firebase deploy --only functions`
+
+The default Firebase project alias is `connect-dae99` in `.firebaserc`.
+
+FCM itself is handled by Firebase Cloud Messaging; the server functions use the Admin SDK in the trusted Cloud Functions runtime. Android Admin credentials must never be embedded in the app.
