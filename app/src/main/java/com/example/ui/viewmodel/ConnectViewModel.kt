@@ -400,6 +400,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
 
         if (!isPreviewMode) {
             cloudActivityJob = viewModelScope.launch {
+                repository.clearCloudPlans()
                 cloudActivityRepository.observeActivities(stableId)
                     .catch { error ->
                         cloudActivityError.value = error.localizedMessage ?: "Could not load activities."
