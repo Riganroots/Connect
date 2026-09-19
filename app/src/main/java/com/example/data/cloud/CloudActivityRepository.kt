@@ -27,6 +27,7 @@ class CloudActivityRepository(context: Context) {
 
         var activityDocuments: List<DocumentSnapshot> = emptyList()
         var joinedActivityIds: Set<String> = emptySet()
+        var savedActivityIds: Set<String> = emptySet()
 
         fun emitCurrentState() {
             val plans = activityDocuments.mapNotNull { document ->
@@ -50,7 +51,7 @@ class CloudActivityRepository(context: Context) {
                     organizerRating = document.getDouble("organizerRating") ?: 0.0,
                     joinedCount = (document.getLong("joinedCount") ?: 1L).toInt(),
                     isJoinedByMe = organizerId == userId || joinedActivityIds.contains(document.id),
-                    isSaved = false,
+                    isSaved = savedActivityIds.contains(document.id),
                     isVerifiedOrganizer = document.getBoolean("isVerifiedOrganizer") ?: false
                 )
             }
@@ -83,9 +84,23 @@ class CloudActivityRepository(context: Context) {
                 emitCurrentState()
             }
 
+        val savedRegistration = db.collection(USERS)
+            .document(userId)
+            .collection(SAVED_ACTIVITIES)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                savedActivityIds = snapshot?.documents.orEmpty().map { it.id }.toSet()
+                emitCurrentState()
+            }
+
         awaitClose {
             activityRegistration.remove()
             membershipRegistration.remove()
+            savedRegistration.remove()
         }
     }
 
@@ -181,10 +196,38 @@ class CloudActivityRepository(context: Context) {
         }.awaitResult()
     }
 
+    suspend fun toggleSaved(activityId: String, userId: String): Result<Boolean> {
+        val db = firestore
+            ?: return Result.failure(IllegalStateException("Firestore is not configured."))
+
+        val saved = db.collection(USERS)
+            .document(userId)
+            .collection(SAVED_ACTIVITIES)
+            .document(activityId)
+
+        return db.runTransaction { transaction ->
+            val snapshot = transaction.get(saved)
+            if (snapshot.exists()) {
+                transaction.delete(saved)
+                false
+            } else {
+                transaction.set(
+                    saved,
+                    mapOf(
+                        "activityId" to activityId,
+                        "savedAt" to FieldValue.serverTimestamp()
+                    )
+                )
+                true
+            }
+        }.awaitResult()
+    }
+
     private companion object {
         const val ACTIVITIES = "activities"
         const val USERS = "users"
         const val JOINED_ACTIVITIES = "joinedActivities"
+        const val SAVED_ACTIVITIES = "savedActivities"
     }
 }
 
