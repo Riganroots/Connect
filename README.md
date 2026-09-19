@@ -42,6 +42,23 @@ A custom debug keystore is not required. Android's normal debug signing is used.
 
 The current app does not make production Gemini API calls. Do not ship a private Gemini/server API key inside the Android APK.
 
+## Firebase Authentication
+
+Connect now contains a Firebase Authentication-ready account flow.
+
+To enable real sign-in:
+
+1. Create or open the Firebase project that will own Connect.
+2. Register an Android app with package name `com.connectapp.npl`.
+3. Download `google-services.json` from Firebase.
+4. Place it at `app/google-services.json`.
+5. In Firebase Console → Authentication → Sign-in method, enable **Email/Password**.
+6. Rebuild the app.
+
+When `google-services.json` is absent, the Google Services plugin is not applied and CI can still build the project. Debug builds show an explicit **Preview Mode** so development can continue; Preview Mode is not a real account and is not available as a production authentication substitute.
+
+Do not add Firebase Admin SDK service-account JSON or other server credentials to this repository.
+
 ## Release signing
 
 Release credentials are read from environment variables only when all required signing values are present:

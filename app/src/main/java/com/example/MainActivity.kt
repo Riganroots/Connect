@@ -49,6 +49,8 @@ import com.example.data.models.Availability
 import com.example.data.models.Group
 import com.example.data.models.Plan
 import com.example.data.models.UserProfile
+import com.example.auth.AuthViewModel
+import com.example.ui.auth.AuthGate
 import com.example.ui.theme.*
 import com.example.ui.components.AppHeader
 import com.example.ui.components.ConnectBottomNavigation
@@ -62,17 +64,20 @@ import com.example.ui.viewmodel.kathmanduDiscoverSpots
 
 class MainActivity : ComponentActivity() {
     private val viewModel: ConnectViewModel by viewModels()
+    private val authViewModel: AuthViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize()
-                ) { innerPadding ->
-                    Box(modifier = Modifier.padding(innerPadding)) {
-                        ConnectApp(viewModel = viewModel)
+                AuthGate(viewModel = authViewModel) {
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize()
+                    ) { innerPadding ->
+                        Box(modifier = Modifier.padding(innerPadding)) {
+                            ConnectApp(viewModel = viewModel, onSignOut = authViewModel::signOut)
+                        }
                     }
                 }
             }
@@ -81,7 +86,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun ConnectApp(viewModel: ConnectViewModel) {
+fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit) {
     val currentScreen by viewModel.currentScreen.collectAsStateWithLifecycle()
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
 
@@ -130,7 +135,8 @@ fun ConnectApp(viewModel: ConnectViewModel) {
                     is Screen.Profile -> {
                         ProfileScreen(
                             viewModel = viewModel,
-                            onEditProfile = { showProfileCreator = true }
+                            onEditProfile = { showProfileCreator = true },
+                            onSignOut = onSignOut
                         )
                     }
                     is Screen.ChatDetail -> {
@@ -158,7 +164,7 @@ fun ConnectApp(viewModel: ConnectViewModel) {
 
 // ======================== HOME SCREEN ========================
 @Composable
-fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit) {
+fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSignOut: () -> Unit) {
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
     val plans by viewModel.allPlans.collectAsStateWithLifecycle()
 
@@ -373,6 +379,13 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit) {
                         modifier = Modifier.height(34.dp)
                     ) {
                         Text("Config Profile", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    TextButton(
+                        onClick = onSignOut,
+                        colors = ButtonDefaults.textButtonColors(contentColor = ConnectGrayMedium)
+                    ) {
+                        Text("Sign out / Exit preview", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
