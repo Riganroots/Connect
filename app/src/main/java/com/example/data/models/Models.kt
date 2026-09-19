@@ -5,18 +5,18 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "profiles")
 data class UserProfile(
-    @PrimaryKey val id: String = "ayush",
-    val name: String = "Ayush",
+    @PrimaryKey val id: String = "local-user",
+    val name: String = "Connect Member",
     val location: String = "Kathmandu, Nepal",
     val isTravellerMode: Boolean = false,
-    val rating: Double = 4.8,
-    val bio: String = "Young professional based in Kathmandu. Up for local food tours, early morning trails, and weekend futsal. Let's Connect!",
+    val rating: Double = 0.0,
+    val bio: String = "",
     // Verification Status
     val isVerified: Boolean = false,
     val verifiedPhone: String = "",
     val verifiedNationalIdName: String = "",
     val verificationMethod: String = "", // "Phone", "ID"
-    val interests: String = "Hiking 🏔️, Food Walk 🥟, Futsal ⚽, Live Music 🎸"
+    val interests: String = ""
 )
 
 @Entity(tableName = "plans")
