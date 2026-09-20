@@ -217,6 +217,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
     val plans by viewModel.allPlans.collectAsStateWithLifecycle()
     val currentUserId by viewModel.currentUserId.collectAsStateWithLifecycle()
+    val isPreviewMode = currentUserId == "preview-user"
 
     val myPublishedPlans = plans.filter { plan ->
         if (plan.cloudId.isNotBlank()) {
@@ -309,7 +310,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                                 .size(74.dp)
                                 .clip(CircleShape)
                                 .background(ConnectDarkGreen)
-                                .border(3.dp, if (profile?.isVerified == true) Color(0xFF48BB78) else ConnectMint, CircleShape),
+                                .border(3.dp, if (isPreviewMode && profile?.isVerified == true) Color(0xFF48BB78) else ConnectMint, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -319,7 +320,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                                 modifier = Modifier.size(40.dp)
                             )
                         }
-                        if (profile?.isVerified == true) {
+                        if (isPreviewMode && profile?.isVerified == true) {
                             Box(
                                 modifier = Modifier
                                     .size(22.dp)
@@ -346,7 +347,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                             fontWeight = FontWeight.ExtraBold,
                             color = ConnectGrayDark
                         )
-                        if (profile?.isVerified == true) {
+                        if (isPreviewMode && profile?.isVerified == true) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
@@ -357,29 +358,40 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                         }
                     }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(top = 2.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = "Score stars",
-                            tint = Color(0xFFD4AF37),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                    val profileRating = profile?.rating ?: 0.0
+                    if (profileRating > 0.0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Member rating",
+                                tint = Color(0xFFD4AF37),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${profileRating} member rating",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ConnectGrayDark
+                            )
+                        }
+                    } else {
                         Text(
-                            text = "${profile?.rating ?: 4.8} Stars Local Companion Rating",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ConnectGrayDark
+                            text = "New Connect member",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ConnectGrayMedium,
+                            modifier = Modifier.padding(top = 2.dp)
                         )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = profile?.bio ?: "Exploring local trails and networking with sports players around Lalitpur.",
+                        text = profile?.bio?.takeIf { it.isNotBlank() } ?: "Add a short bio so people know what you like to do.",
                         textAlign = TextAlign.Center,
                         fontSize = 12.sp,
                         color = ConnectGrayMedium,
@@ -387,7 +399,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
 
-                    val userInterests = (profile?.interests ?: "Hiking 🏔️, Food Walk 🥟, Futsal ⚽, Live Music 🎸")
+                    val userInterests = (profile?.interests ?: "")
                         .split(",")
                         .map { it.trim() }
                         .filter { it.isNotEmpty() }
@@ -434,32 +446,33 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = ConnectDarkGreen),
                         modifier = Modifier.height(34.dp)
                     ) {
-                        Text("Config Profile", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Edit profile", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
 
                     TextButton(
                         onClick = onSignOut,
                         colors = ButtonDefaults.textButtonColors(contentColor = ConnectGrayMedium)
                     ) {
-                        Text("Sign out / Exit preview", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(if (isPreviewMode) "Exit preview" else "Sign out", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
 
-        // 2. Trust & Verification Center Panel
-        item {
+        // Prototype verification remains available only in Preview Mode.
+        if (isPreviewMode) {
+            item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .border(
                         width = 1.dp,
-                        color = if (profile?.isVerified == true) Color(0xFFC6F6D5) else ConnectGrayLight,
+                        color = if (isPreviewMode && profile?.isVerified == true) Color(0xFFC6F6D5) else ConnectGrayLight,
                         shape = RoundedCornerShape(20.dp)
                     ),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (profile?.isVerified == true) Color(0xFFF0FFF4) else ConnectCream
+                    containerColor = if (isPreviewMode && profile?.isVerified == true) Color(0xFFF0FFF4) else ConnectCream
                 )
             ) {
                 Column(
@@ -475,9 +488,9 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = if (profile?.isVerified == true) Icons.Default.CheckCircle else Icons.Default.Warning,
+                                imageVector = if (isPreviewMode && profile?.isVerified == true) Icons.Default.CheckCircle else Icons.Default.Warning,
                                 contentDescription = "Trust emblem",
-                                tint = if (profile?.isVerified == true) Color(0xFF38A169) else Color(0xFFDD6B20),
+                                tint = if (isPreviewMode && profile?.isVerified == true) Color(0xFF38A169) else Color(0xFFDD6B20),
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -489,7 +502,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                             )
                         }
 
-                        if (profile?.isVerified == true) {
+                        if (isPreviewMode && profile?.isVerified == true) {
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(30.dp))
@@ -508,7 +521,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    if (profile?.isVerified == true) {
+                    if (isPreviewMode && profile?.isVerified == true) {
                         // VERIFIED STATE: Show secure metadata information
                         Text(
                             text = "You are a Verified Kathmandu Companion! Other members planning real-life activities will see the green verified badge on your profile and hosted plans.",
@@ -1206,6 +1219,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                 }
             }
         }
+        }
 
         // Sub tab options: Joined, Hosted, and Saved plans
         item {
@@ -1249,9 +1263,9 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                 ) {
                     Text(
                         text = when (selectedTab) {
-                            0 -> "You haven't joined any activities yet. Go to Home to explore and join Kathmandu plans!"
-                            1 -> "You haven't posted or hosted any plans yet."
-                            else -> "No saved activities. Favorite general plans to bookmark them here."
+                            0 -> "You haven't joined any activities yet. Go to Discover to find something nearby."
+                            1 -> "You haven't hosted an activity yet. Tap Create when you're ready."
+                            else -> "No saved activities yet. Tap the heart on an activity to keep it here."
                         },
                         fontSize = 12.sp,
                         color = ConnectGrayMedium,
