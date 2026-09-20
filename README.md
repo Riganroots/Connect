@@ -6,13 +6,13 @@ Connect is a native Android activity-based social app for discovering local plan
 
 This repository is currently being prepared for production development. The app uses Kotlin, Jetpack Compose, Material 3, Room, StateFlow, and Android Gradle Plugin 9.1.1.
 
-Current product data is primarily local/on-device. Real authentication, backend sync, real-time chat, push notifications, and production identity verification are planned work.
+Connect now has real Firebase Authentication, Firestore-backed profiles, cross-device activities, joins, saves, real-time chat, communities, Available Now, and an FCM client. Cloud Functions notification sending is implemented in the repository but remains undeployed while the Firebase project stays on the Spark plan.
 
 ## App identity
 
 - Display name: **Connect**
 - Android application ID: `com.connectapp.npl`
-- Current internal-testing version: `0.1.0` (version code 1)
+- Current internal-testing version: `0.2.0-beta01` (version code 2)
 
 The application ID is intended to remain permanent for Google Play releases.
 
@@ -69,6 +69,15 @@ Release credentials are read from environment variables only when all required s
 - optional `KEY_ALIAS` (defaults to `upload`)
 
 Keystores and signing files must never be committed.
+
+For Google Play Internal Testing, use the manual GitHub Actions workflow **Play Internal Testing Bundle** after configuring these repository secrets:
+
+- `UPLOAD_KEYSTORE_BASE64`
+- `UPLOAD_STORE_PASSWORD`
+- `UPLOAD_KEY_PASSWORD`
+- `UPLOAD_KEY_ALIAS`
+
+The workflow materializes the upload keystore only inside the temporary GitHub Actions runner, builds `bundleRelease`, and uploads the signed AAB as a short-lived workflow artifact. The real upload keystore must never be committed to Git.
 
 ## CI
 
