@@ -491,6 +491,24 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                         }
                     )
                 )
+            } else if (
+                !isPreviewMode &&
+                (
+                    existing.isVerified ||
+                    existing.verifiedPhone.isNotBlank() ||
+                    existing.verifiedNationalIdName.isNotBlank() ||
+                    existing.verificationMethod.isNotBlank()
+                )
+            ) {
+                // Prototype verification data must never appear as real beta trust state.
+                repository.updateProfile(
+                    existing.copy(
+                        isVerified = false,
+                        verifiedPhone = "",
+                        verifiedNationalIdName = "",
+                        verificationMethod = ""
+                    )
+                )
             }
         }
     }
