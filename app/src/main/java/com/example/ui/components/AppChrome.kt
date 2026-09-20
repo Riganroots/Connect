@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -78,7 +79,7 @@ fun AppHeader(
                             color = ConnectGrayDark
                         )
                         Text(
-                            text = "Updates about plans, reminders and trust will appear here.",
+                            text = "Updates about activities, chat and communities will appear here.",
                             fontSize = 11.sp,
                             color = ConnectGrayMedium,
                             textAlign = TextAlign.Center,
@@ -117,7 +118,11 @@ fun AppHeader(
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
+                                    Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
                                         Text(
                                             text = notification.title,
                                             fontSize = 12.sp,
@@ -194,18 +199,28 @@ fun AppHeader(
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                     Text(
-                        text = profile?.location ?: "Kathmandu, Nepal",
+                        text = profile?.location?.takeIf { it.isNotBlank() } ?: "Kathmandu, Nepal",
                         color = ConnectGrayMedium,
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                     if (profile?.isTravellerMode == true) {
-                        Text(
-                            text = "  •  Traveller",
-                            color = ConnectDarkGreen,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = ConnectMint
+                        ) {
+                            Text(
+                                text = "Traveller",
+                                color = ConnectDarkGreen,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -239,13 +254,13 @@ fun AppHeader(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Row(
+            Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(22.dp))
+                    .size(40.dp)
+                    .clip(CircleShape)
                     .background(ConnectCream)
-                    .clickable(onClick = onConfigureProfile)
-                    .padding(start = 5.dp, end = 10.dp, top = 5.dp, bottom = 5.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .clickable(onClick = onConfigureProfile),
+                contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
@@ -254,30 +269,12 @@ fun AppHeader(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = (profile?.name?.take(1) ?: "A").uppercase(),
+                        text = (profile?.name?.take(1) ?: "C").uppercase(),
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 13.sp
                     )
-
-                    if (profile?.isVerified == true) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .size(10.dp)
-                                .background(Color(0xFF48BB78), CircleShape)
-                                .border(1.dp, ConnectWhite, CircleShape)
-                        )
-                    }
                 }
-
-                Spacer(modifier = Modifier.width(7.dp))
-                Text(
-                    text = profile?.name ?: "Ayush",
-                    color = ConnectGrayDark,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
             }
         }
     }
