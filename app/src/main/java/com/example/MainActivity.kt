@@ -388,6 +388,24 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                         )
                     }
 
+                    if (!isPreviewMode && (profile?.name.isNullOrBlank() || profile?.name == "Connect Member")) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = ConnectCream,
+                            border = BorderStroke(1.dp, ConnectGrayLight)
+                        ) {
+                            Text(
+                                text = "Complete your profile with your name, bio and interests before hosting.",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                fontSize = 10.sp,
+                                lineHeight = 14.sp,
+                                color = ConnectGrayMedium,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
