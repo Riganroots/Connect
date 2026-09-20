@@ -50,6 +50,18 @@ jobs:
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --stacktrace
 
+      - name: Create ephemeral CI release key
+        run: |
+          keytool -genkeypair -v             -keystore "$RUNNER_TEMP/connect-ci-release.jks"             -storepass ci-only-password             -keypass ci-only-password             -alias upload             -keyalg RSA             -keysize 2048             -validity 1             -dname "CN=Connect CI, OU=CI, O=Connect, L=Kathmandu, C=NP"
+
+      - name: Validate release AAB
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/connect-ci-release.jks
+          STORE_PASSWORD: ci-only-password
+          KEY_PASSWORD: ci-only-password
+          KEY_ALIAS: upload
+        run: ./gradlew bundleRelease --stacktrace
+
       - name: Upload generated wrapper
         if: always()
         uses: actions/upload-artifact@v4
