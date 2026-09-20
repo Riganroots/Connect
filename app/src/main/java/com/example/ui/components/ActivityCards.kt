@@ -198,8 +198,22 @@ fun PlanCard(
                     )
                 }
                 Spacer(modifier = Modifier.width(7.dp))
-                Text(plan.organizerName, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark)
-                Text("  ★ ${plan.organizerRating}", fontSize = 10.sp, color = ConnectGrayMedium)
+                Text(
+                    text = plan.organizerName,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ConnectGrayDark,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (plan.organizerRating > 0.0) {
+                    Text(
+                        text = "★ ${plan.organizerRating}",
+                        fontSize = 10.sp,
+                        color = ConnectGrayMedium
+                    )
+                }
             }
 
             Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = ConnectCream) {
@@ -211,7 +225,7 @@ fun PlanCard(
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         PlanMetaRow(
                             icon = Icons.Default.DateRange,
-                            text = "${plan.date} · ${plan.time}",
+                            text = formatPlanSchedule(plan.date, plan.time),
                             modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -304,4 +318,23 @@ private fun PlanMetaRow(
             overflow = TextOverflow.Ellipsis
         )
     }
+}
+
+
+private fun formatPlanSchedule(date: String, time: String): String {
+    val cleanDate = date.trim()
+        .replace(Regex("\\s+"), " ")
+        .replaceFirstChar { first ->
+            if (first.isLowerCase()) first.titlecase() else first.toString()
+        }
+
+    val rawTime = time.trim().replace(Regex("\\s+"), " ")
+    val cleanTime = Regex("^(\\d{1,2})\\s+(\\d{2})$")
+        .matchEntire(rawTime)
+        ?.let { match -> "${match.groupValues[1]}:${match.groupValues[2]}" }
+        ?: rawTime
+
+    return listOf(cleanDate, cleanTime)
+        .filter { it.isNotBlank() }
+        .joinToString(" · ")
 }
