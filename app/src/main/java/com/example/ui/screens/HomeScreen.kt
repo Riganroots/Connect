@@ -1154,13 +1154,13 @@ fun KathmanduActivityMap(
                     Spacer(modifier = Modifier.width(6.dp))
                     Column {
                         Text(
-                            text = "Interactive Kathmandu Activity Map",
+                            text = "Kathmandu Area Filter",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = ConnectGrayDark
                         )
                         Text(
-                            text = "Visualize active plans across Kathmandu valley",
+                            text = "Tap an area marker to filter nearby activities",
                             fontSize = 10.sp,
                             color = ConnectGrayMedium
                         )
@@ -1451,7 +1451,7 @@ fun KathmanduActivityMap(
                                     }
                                 }
                                 Text(
-                                    text = "Focused: ${activeMetadata.second}",
+                                    text = "Area: ${activeMetadata.second}",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = ConnectGrayDark
@@ -1463,13 +1463,13 @@ fun KathmanduActivityMap(
                                 )
                             } else {
                                 Text(
-                                    text = "📍 Showing All Kathmandu Areas",
+                                    text = "📍 Showing all Kathmandu areas",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = ConnectGrayDark
                                 )
                                 Text(
-                                    text = "Tap any pins on the map above to zoom-filter activities in that neighborhood.",
+                                    text = "Tap an area marker above to filter activities in that neighborhood.",
                                     fontSize = 10.sp,
                                     color = ConnectGrayMedium
                                 )
