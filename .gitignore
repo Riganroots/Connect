@@ -28,3 +28,8 @@ google-service-account*.json
 functions/node_modules/
 functions/.env
 firebase-debug.log
+
+# Firestore rule test dependencies and emulator logs
+rules-tests/node_modules/
+**/firestore-debug.log
+**/firebase-debug.log

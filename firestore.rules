@@ -1,0 +1,130 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function text(value, limit) { return value is string && value.size() <= limit; }
+    function activityPath(id) { return /databases/$(database)/documents/activities/$(id); }
+    function membershipPath(uid, id) {
+      return /databases/$(database)/documents/users/$(uid)/joinedActivities/$(id);
+    }
+    function chatMember(id) {
+      return signedIn() && exists(activityPath(id)) &&
+        (get(activityPath(id)).data.organizerId == request.auth.uid ||
+         exists(membershipPath(request.auth.uid, id)));
+    }
+    function validProfile(uid) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['uid', 'email', 'displayName', 'location', 'bio',
+        'interests', 'photoUrl', 'isVerified', 'schemaVersion', 'createdAt',
+        'updatedAt', 'lastLoginAt']) && d.uid == uid &&
+        text(d.displayName, 80) && text(d.location, 200) && text(d.bio, 2000) &&
+        text(d.photoUrl, 2000) && d.interests is list && d.interests.size() <= 30 &&
+        (d.get('email', null) == null || text(d.email, 320)) &&
+        d.schemaVersion == 1 && d.isVerified is bool &&
+        d.updatedAt == request.time && d.lastLoginAt == request.time;
+    }
+    match /users/{uid} {
+      // Profiles can contain email addresses. Public discovery uses denormalized names.
+      allow read: if owner(uid);
+      allow create: if owner(uid) && validProfile(uid) &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.isVerified == false;
+      allow update: if owner(uid) && validProfile(uid) &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.isVerified == resource.data.isVerified;
+      // Deletion needs a server-side cleanup flow, not orphaned client documents.
+      allow delete: if false;
+      match /devices/{deviceId} {
+        allow read, delete: if owner(uid);
+        allow create, update: if owner(uid) &&
+          request.resource.data.keys().hasOnly(['token', 'platform', 'appVersion', 'updatedAt']) &&
+          text(request.resource.data.token, 4096) && request.resource.data.token.size() > 0 &&
+          request.resource.data.platform == 'android' &&
+          text(request.resource.data.appVersion, 80) && request.resource.data.updatedAt == request.time;
+      }
+      match /joinedActivities/{id} {
+        allow read: if owner(uid);
+        allow create: if owner(uid) &&
+          request.resource.data.keys().hasOnly(['activityId', 'joinedAt']) &&
+          request.resource.data.activityId == id && request.resource.data.joinedAt == request.time &&
+          (( !exists(activityPath(id)) &&
+             getAfter(activityPath(id)).data.organizerId == uid &&
+             getAfter(activityPath(id)).data.joinedCount == 1 ) ||
+           ( exists(activityPath(id)) && get(activityPath(id)).data.organizerId != uid &&
+             getAfter(activityPath(id)).data.joinedCount == get(activityPath(id)).data.joinedCount + 1 ));
+        allow delete: if owner(uid) && get(activityPath(id)).data.organizerId != uid &&
+          getAfter(activityPath(id)).data.joinedCount == get(activityPath(id)).data.joinedCount - 1;
+        allow update: if false;
+      }
+      match /savedActivities/{id} {
+        allow read, delete: if owner(uid);
+        allow create: if owner(uid) && exists(activityPath(id)) &&
+          request.resource.data.keys().hasOnly(['activityId', 'savedAt']) &&
+          request.resource.data.activityId == id && request.resource.data.savedAt == request.time;
+        allow update: if false;
+      }
+      match /groupMemberships/{id} {
+        // Groups are currently static app content; these documents store personal selections.
+        allow read, delete: if owner(uid);
+        allow create: if owner(uid) && text(id, 200) &&
+          request.resource.data.keys().hasOnly(['groupId', 'joinedAt']) &&
+          request.resource.data.groupId == id && request.resource.data.joinedAt == request.time;
+        allow update: if false;
+      }
+    }
+    match /activities/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() &&
+        request.resource.data.keys().hasOnly(['organizerId', 'organizerName', 'organizerRating',
+          'title', 'category', 'location', 'date', 'time', 'pricePerPerson', 'participantsNeeded',
+          'description', 'joinedCount', 'isVerifiedOrganizer', 'createdAt', 'updatedAt']) &&
+        request.resource.data.organizerId == request.auth.uid &&
+        text(request.resource.data.organizerName, 80) &&
+        request.resource.data.organizerRating == 0 &&
+        text(request.resource.data.title, 200) && request.resource.data.title.size() > 0 &&
+        request.resource.data.category in ['Play', 'Explore', 'Meet', 'Learn', 'Experience'] &&
+        text(request.resource.data.location, 200) && text(request.resource.data.date, 80) &&
+        text(request.resource.data.time, 80) && text(request.resource.data.pricePerPerson, 80) &&
+        request.resource.data.participantsNeeded is int && request.resource.data.participantsNeeded >= 1 &&
+        request.resource.data.participantsNeeded <= 10000 && text(request.resource.data.description, 5000) &&
+        request.resource.data.joinedCount == 1 && request.resource.data.isVerifiedOrganizer == false &&
+        request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time &&
+        getAfter(membershipPath(request.auth.uid, id)).data.activityId == id;
+      // Joining/leaving must atomically change the caller's membership and count.
+      allow update: if signedIn() && resource.data.organizerId != request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['joinedCount', 'updatedAt']) &&
+        request.resource.data.updatedAt == request.time && request.resource.data.joinedCount is int &&
+        request.resource.data.joinedCount >= 1 &&
+        ((!exists(membershipPath(request.auth.uid, id)) && existsAfter(membershipPath(request.auth.uid, id)) &&
+          request.resource.data.joinedCount == resource.data.joinedCount + 1) ||
+         (exists(membershipPath(request.auth.uid, id)) && !existsAfter(membershipPath(request.auth.uid, id)) &&
+          request.resource.data.joinedCount == resource.data.joinedCount - 1));
+      allow delete: if false;
+      match /messages/{messageId} {
+        allow read: if chatMember(id);
+        allow create: if chatMember(id) &&
+          request.resource.data.keys().hasOnly(['senderId', 'senderName', 'text', 'createdAt']) &&
+          request.resource.data.senderId == request.auth.uid &&
+          text(request.resource.data.senderName, 80) && request.resource.data.senderName.size() > 0 &&
+          text(request.resource.data.text, 1000) && request.resource.data.text.size() > 0 &&
+          request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+    match /availability/{uid} {
+      allow read: if signedIn();
+      allow delete: if owner(uid);
+      allow create, update: if owner(uid) &&
+        request.resource.data.keys().hasOnly(['userId', 'userName', 'statusText', 'iconType',
+          'isVerified', 'updatedAt', 'expiresAt']) && request.resource.data.userId == uid &&
+        text(request.resource.data.userName, 80) && request.resource.data.userName.size() > 0 &&
+        text(request.resource.data.statusText, 35) && request.resource.data.statusText.size() > 0 &&
+        text(request.resource.data.iconType, 80) && request.resource.data.isVerified == false &&
+        request.resource.data.updatedAt == request.time && request.resource.data.expiresAt is timestamp &&
+        request.resource.data.expiresAt > request.time &&
+        request.resource.data.expiresAt <= request.time + duration.value(3, 'h');
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
