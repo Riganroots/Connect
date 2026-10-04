@@ -22,3 +22,7 @@ test("lookup failure cannot allow delivery", async () => {
   const db = { doc: () => ({ get: async () => { throw new Error("unavailable"); } }) };
   await assert.rejects(notificationBlocked(db, "recipient", "sender"), /unavailable/);
 });
+test('pending account deletion suppresses outgoing and incoming notifications', async () => {
+  assert.equal(await notificationBlocked(database(['accountDeletionJobs/sender']), 'recipient', 'sender'), true);
+  assert.equal(await notificationBlocked(database(['accountDeletionJobs/recipient']), 'recipient', 'sender'), true);
+});

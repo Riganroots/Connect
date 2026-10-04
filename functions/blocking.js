@@ -4,6 +4,8 @@
 async function notificationBlocked(db, recipientId, sourceUserId) {
   if (!recipientId || !sourceUserId || recipientId === sourceUserId) return true;
   const paths = [
+    `accountDeletionJobs/${recipientId}`,
+    `accountDeletionJobs/${sourceUserId}`,
     `users/${recipientId}/blockedUsers/${sourceUserId}`,
     `users/${sourceUserId}/blockedUsers/${recipientId}`,
   ];

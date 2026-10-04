@@ -173,15 +173,32 @@ test('outsiders and hosts cannot report through member reporting flow', async ()
 
 test('blocklist is private, supports sync, and can be unblocked', async () => {
   const db = dbFor('guest'), ref = doc(db, 'users/guest/blockedUsers/host');
-  await assertSucceeds(setDoc(ref, { displayName: 'Host', blockedAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(ref, { targetUid: 'host', displayName: 'Host', blockedAt: serverTimestamp() }));
   await assertSucceeds(getDocs(collection(db, 'users/guest/blockedUsers')));
   await assertFails(getDoc(doc(dbFor('host'), 'users/guest/blockedUsers/host')));
-  await assertFails(setDoc(doc(dbFor('host'), 'users/guest/blockedUsers/other'), { displayName: 'Other', blockedAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(dbFor('host'), 'users/guest/blockedUsers/other'), { targetUid: 'other', displayName: 'Other', blockedAt: serverTimestamp() }));
   await assertFails(deleteDoc(doc(dbFor('host'), 'users/guest/blockedUsers/host')));
   await assertSucceeds(deleteDoc(ref));
 });
 test('self blocks and extra privilege fields are rejected', async () => {
   const db = dbFor('guest');
-  await assertFails(setDoc(doc(db, 'users/guest/blockedUsers/guest'), { displayName: 'Me', blockedAt: serverTimestamp() }));
-  await assertFails(setDoc(doc(db, 'users/guest/blockedUsers/host'), { displayName: 'Host', blockedAt: serverTimestamp(), admin: true }));
+  await assertFails(setDoc(doc(db, 'users/guest/blockedUsers/guest'), { targetUid: 'guest', displayName: 'Me', blockedAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(db, 'users/guest/blockedUsers/host'), { targetUid: 'host', displayName: 'Host', blockedAt: serverTimestamp(), admin: true }));
+});
+
+test('deletion jobs cannot be created, read or modified by clients', async () => {
+  const db = dbFor('guest');
+  await assertFails(setDoc(doc(db, 'accountDeletionJobs/guest'), { status: 'queued' }));
+  await assertFails(getDoc(doc(db, 'accountDeletionJobs/guest')));
+});
+test('pending deletion freezes the account and prevents new writes to hosted content', async () => {
+  await createWalk();
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'accountDeletionJobs/host'), { status: 'queued' });
+  });
+  await assertFails(getDocs(collection(dbFor('host'), 'activities')));
+  await assertFails(setDoc(doc(dbFor('host'), 'users/host'), profile('host')));
+  await assertFails(join('guest'));
+  await assertFails(setDoc(doc(dbFor('guest'), 'users/guest/savedActivities/walk'), { activityId: 'walk', savedAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(dbFor('host'), 'activities/walk/messages/new'), message('host')));
 });

@@ -33,6 +33,7 @@ class CloudBlockRepository(context: Context) {
         val ref = db.collection("users").document(uid).collection("blockedUsers").document(targetUid)
         return suspendCancellableCoroutine { continuation ->
             val task = if (blocked) ref.set(mapOf(
+                "targetUid" to targetUid,
                 "displayName" to displayName.trim().ifBlank { "Connect Member" }.take(80),
                 "blockedAt" to FieldValue.serverTimestamp()
             )) else ref.delete()

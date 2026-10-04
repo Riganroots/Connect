@@ -32,7 +32,7 @@ jobs:
           node-version: "22"
 
       - name: Install function dependencies
-        run: npm install --prefix functions --no-audit --no-fund
+        run: npm ci --prefix functions --no-audit --no-fund
 
       - name: Verify Firebase modules
         working-directory: functions

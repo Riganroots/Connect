@@ -2,10 +2,10 @@ name: Firestore Rules CI
 on:
   push:
     branches: [main, 'codex/**', 'claude/**']
-    paths: ['firestore.rules', 'firebase.json', 'rules-tests/**', '.github/workflows/firestore-rules-ci.yml']
+    paths: ['firestore.rules', 'firebase.json', 'rules-tests/**', 'functions/**', '.github/workflows/firestore-rules-ci.yml']
   pull_request:
     branches: [main]
-    paths: ['firestore.rules', 'firebase.json', 'rules-tests/**', '.github/workflows/firestore-rules-ci.yml']
+    paths: ['firestore.rules', 'firebase.json', 'rules-tests/**', 'functions/**', '.github/workflows/firestore-rules-ci.yml']
 permissions:
   contents: read
 jobs:
@@ -23,7 +23,9 @@ jobs:
       - name: Install rule test dependencies
         working-directory: rules-tests
         run: npm ci --no-audit --no-fund
-      - name: Test access rules in isolated demo emulator
+      - name: Install cleanup test dependencies
+        run: npm ci --prefix functions --no-audit --no-fund
+      - name: Test access rules and cleanup in isolated demo emulator
         working-directory: rules-tests
         run: npm test
       - uses: actions/upload-artifact@v4

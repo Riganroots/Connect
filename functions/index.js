@@ -179,3 +179,31 @@ exports.notifyHostWhenActivityJoined = onDocumentCreated(
     }, joiningUserId);
   }
 );
+
+// Own-account deletion only. No arbitrary UID/path is accepted from the client.
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { getAuth } = require("firebase-admin/auth");
+const { deletionIdentity, cleanupAccount } = require("./account-deletion");
+exports.requestAccountDeletion = onCall(async (request) => {
+  let uid;
+  try { uid = deletionIdentity(request); }
+  catch (error) { throw new HttpsError(error.code, error.message); }
+  try {
+    await db.doc(`accountDeletionJobs/${uid}`).create({
+      status: "queued", requestedAt: require("firebase-admin/firestore").FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    if (error.code !== 6 && error.code !== "already-exists") throw error;
+  }
+  return { accepted: true };
+});
+exports.processAccountDeletion = onDocumentCreated({
+  document: "accountDeletionJobs/{uid}", retry: true, timeoutSeconds: 540,
+}, async (event) => {
+  const ref = db.doc(`accountDeletionJobs/${event.params.uid}`);
+  const job = await ref.get();
+  if (!job.exists || job.get("status") === "complete") return;
+  await ref.update({ status: "processing" });
+  await cleanupAccount(db, getAuth(), event.params.uid);
+  await ref.update({ status: "complete", completedAt: require("firebase-admin/firestore").FieldValue.serverTimestamp() });
+});

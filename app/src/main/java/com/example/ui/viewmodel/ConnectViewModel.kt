@@ -707,6 +707,19 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun endSession() {
+        cloudActivityJob?.cancel()
+        groupMembershipJob?.cancel()
+        availabilityJob?.cancel()
+        blockJob?.cancel()
+        chatJobs.values.forEach { it.cancel() }
+        chatJobs.clear()
+        chatStates.values.forEach { it.value = emptyList() }
+        chatStates.clear()
+        blockedUsers.value = emptyMap()
+        currentScreen.value = Screen.Home
+    }
+
     fun setUserBlocked(targetUid: String, name: String, blocked: Boolean, onResult: (String?) -> Unit) {
         val uid = activeUserId.value
         if (uid == PREVIEW_USER_ID) { onResult("Sign in to block users."); return }

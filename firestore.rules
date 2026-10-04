@@ -1,7 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
+    function deleting(uid) { return exists(/databases/$(database)/documents/accountDeletionJobs/$(uid)); }
+    function signedIn() { return request.auth != null && !deleting(request.auth.uid); }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
     function text(value, limit) { return value is string && value.size() <= limit; }
     function activityPath(id) { return /databases/$(database)/documents/activities/$(id); }
@@ -9,7 +10,7 @@ service cloud.firestore {
       return /databases/$(database)/documents/users/$(uid)/joinedActivities/$(id);
     }
     function chatMember(id) {
-      return signedIn() && exists(activityPath(id)) &&
+      return signedIn() && exists(activityPath(id)) && !deleting(get(activityPath(id)).data.organizerId) &&
         (get(activityPath(id)).data.organizerId == request.auth.uid ||
          exists(membershipPath(request.auth.uid, id)));
     }
@@ -46,12 +47,13 @@ service cloud.firestore {
       match /blockedUsers/{targetUid} {
         allow read, delete: if owner(uid);
         allow create, update: if owner(uid) && targetUid != uid && text(targetUid, 200) &&
-          request.resource.data.keys().hasOnly(['displayName', 'blockedAt']) &&
+          request.resource.data.keys().hasOnly(['displayName', 'blockedAt', 'targetUid']) &&
+          request.resource.data.targetUid == targetUid && !deleting(targetUid) &&
           text(request.resource.data.displayName, 80) && request.resource.data.blockedAt == request.time;
       }
       match /joinedActivities/{id} {
         allow read: if owner(uid);
-        allow create: if owner(uid) &&
+        allow create: if owner(uid) && !deleting(getAfter(activityPath(id)).data.organizerId) &&
           request.resource.data.keys().hasOnly(['activityId', 'joinedAt']) &&
           request.resource.data.activityId == id && request.resource.data.joinedAt == request.time &&
           (( !exists(activityPath(id)) &&
@@ -65,7 +67,7 @@ service cloud.firestore {
       }
       match /savedActivities/{id} {
         allow read, delete: if owner(uid);
-        allow create: if owner(uid) && exists(activityPath(id)) &&
+        allow create: if owner(uid) && exists(activityPath(id)) && !deleting(get(activityPath(id)).data.organizerId) &&
           request.resource.data.keys().hasOnly(['activityId', 'savedAt']) &&
           request.resource.data.activityId == id && request.resource.data.savedAt == request.time;
         allow update: if false;
@@ -98,7 +100,7 @@ service cloud.firestore {
         request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time &&
         getAfter(membershipPath(request.auth.uid, id)).data.activityId == id;
       // Joining/leaving must atomically change the caller's membership and count.
-      allow update: if signedIn() && resource.data.organizerId != request.auth.uid &&
+      allow update: if signedIn() && !deleting(resource.data.organizerId) && resource.data.organizerId != request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['joinedCount', 'updatedAt']) &&
         request.resource.data.updatedAt == request.time && request.resource.data.joinedCount is int &&
         request.resource.data.joinedCount >= 1 &&

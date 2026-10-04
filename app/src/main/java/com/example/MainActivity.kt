@@ -67,6 +67,7 @@ import com.example.ui.components.PlanCard
 import com.example.ui.components.ReportActivityButton
 import com.example.ui.components.BlockUserButton
 import com.example.ui.components.BlockedUsersManager
+import com.example.ui.components.DeleteAccountButton
 import com.example.ui.screens.CreatePlanScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.viewmodel.ConnectViewModel
@@ -108,7 +109,10 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize()
                     ) { innerPadding ->
                         Box(modifier = Modifier.padding(innerPadding)) {
-                            ConnectApp(viewModel = viewModel, onSignOut = authViewModel::signOut)
+                            ConnectApp(viewModel = viewModel, onSignOut = authViewModel::signOut,
+                                onDeleteAccount = { password, result ->
+                                    authViewModel.requestAccountDeletion(password, viewModel::endSession, result)
+                                })
                         }
                     }
                 }
@@ -138,7 +142,8 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit) {
+fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit,
+    onDeleteAccount: (String, (String?) -> Unit) -> Unit = { _, result -> result("Deletion is unavailable.") }) {
     val currentScreen by viewModel.currentScreen.collectAsStateWithLifecycle()
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
 
@@ -188,7 +193,8 @@ fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit) {
                         ProfileScreen(
                             viewModel = viewModel,
                             onEditProfile = { showProfileCreator = true },
-                            onSignOut = onSignOut
+                            onSignOut = onSignOut,
+                            onDeleteAccount = onDeleteAccount
                         )
                     }
                     is Screen.ChatDetail -> {
@@ -216,7 +222,8 @@ fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit) {
 
 // ======================== HOME SCREEN ========================
 @Composable
-fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSignOut: () -> Unit) {
+fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSignOut: () -> Unit,
+    onDeleteAccount: (String, (String?) -> Unit) -> Unit = { _, result -> result("Deletion is unavailable.") }) {
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
     val plans by viewModel.allPlans.collectAsStateWithLifecycle()
     val currentUserId by viewModel.currentUserId.collectAsStateWithLifecycle()
@@ -471,6 +478,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                     }
 
                     if (!isPreviewMode) BlockedUsersManager(viewModel)
+                    if (!isPreviewMode) DeleteAccountButton(onDeleteAccount)
                     TextButton(
                         onClick = onSignOut,
                         colors = ButtonDefaults.textButtonColors(contentColor = ConnectGrayMedium)
