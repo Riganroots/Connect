@@ -125,6 +125,18 @@ service cloud.firestore {
         request.resource.data.expiresAt > request.time &&
         request.resource.data.expiresAt <= request.time + duration.value(3, 'h');
     }
+    match /reports/{reportId} {
+      allow create: if signedIn() &&
+        request.resource.data.keys().hasOnly(['reporterId', 'activityId', 'reportedUserId', 'reason', 'details', 'createdAt']) &&
+        request.resource.data.reporterId == request.auth.uid &&
+        text(request.resource.data.activityId, 200) && chatMember(request.resource.data.activityId) &&
+        request.resource.data.reportedUserId == get(activityPath(request.resource.data.activityId)).data.organizerId &&
+        request.resource.data.reportedUserId != request.auth.uid &&
+        request.resource.data.reason in ['Spam or scam', 'Harassment', 'Unsafe activity', 'Misleading information', 'Other'] &&
+        text(request.resource.data.details, 1000) && request.resource.data.createdAt == request.time;
+      // Reports are reviewed with trusted admin access; clients cannot retrieve them.
+      allow read, update, delete: if false;
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }

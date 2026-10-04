@@ -64,6 +64,7 @@ import com.example.ui.components.AppHeader
 import com.example.ui.components.ConnectBottomNavigation
 import com.example.ui.components.GroupCard
 import com.example.ui.components.PlanCard
+import com.example.ui.components.ReportActivityButton
 import com.example.ui.screens.CreatePlanScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.viewmodel.ConnectViewModel
@@ -1375,7 +1376,7 @@ fun ChatDetailScreen(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Plan Host: ${hostPlan?.organizerName ?: "Host"}",
                         fontSize = 13.sp,
@@ -1388,9 +1389,10 @@ fun ChatDetailScreen(
                         color = ConnectGrayMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.width(220.dp)
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
+                ReportActivityButton(viewModel, hostPlan, planId)
             }
         }
 

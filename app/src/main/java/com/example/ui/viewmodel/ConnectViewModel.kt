@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.cloud.CloudActivityRepository
 import com.example.data.cloud.CloudChatRepository
 import com.example.data.cloud.CloudCommunityRepository
+import com.example.data.cloud.CloudReportRepository
 import com.example.data.database.ConnectDatabase
 import com.example.data.database.ConnectRepository
 import com.example.data.models.Availability
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 sealed class Screen {
     object Home : Screen()
@@ -39,6 +41,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     private val cloudActivityRepository: CloudActivityRepository
     private val cloudChatRepository: CloudChatRepository
     private val cloudCommunityRepository: CloudCommunityRepository
+    private val cloudReportRepository = CloudReportRepository(application)
     private var cloudActivityJob: Job? = null
     private var groupMembershipJob: Job? = null
     private var availabilityJob: Job? = null
@@ -670,6 +673,22 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         }
 
         return state
+    }
+
+    fun reportActivity(planId: Long, reason: String, details: String, onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            val plan = repository.getPlanById(planId)
+            val userId = activeUserId.value
+            if (plan == null || plan.cloudId.isBlank() || userId == PREVIEW_USER_ID) {
+                onResult("Reporting is available for real activities after signing in.")
+                return@launch
+            }
+            val result = withTimeoutOrNull(20_000L) {
+                cloudReportRepository.reportActivity(userId, plan.cloudId, plan.organizerId, reason, details)
+            }
+            onResult(if (result == null) "Submission could not be confirmed. It may complete when your connection returns." else
+                result.exceptionOrNull()?.localizedMessage)
+        }
     }
 
     fun sendChatMessage(planId: Long, text: String) {
