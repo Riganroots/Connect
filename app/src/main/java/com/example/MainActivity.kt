@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -140,6 +141,14 @@ fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit) {
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
 
     var showProfileCreator by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = showProfileCreator || currentScreen !is Screen.Home) {
+        if (showProfileCreator) {
+            showProfileCreator = false
+        } else {
+            viewModel.navigateTo(Screen.Home)
+        }
+    }
 
     // If profile is fully custom, edit can be toggled
     if (showProfileCreator) {
