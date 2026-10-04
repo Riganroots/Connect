@@ -416,6 +416,9 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         isPreviewMode: Boolean
     ) {
         val stableId = userId.ifBlank { PREVIEW_USER_ID }
+        if (activeUserId.value != stableId) {
+            currentScreen.value = Screen.Home
+        }
         activeUserId.value = stableId
         cloudActivityJob?.cancel()
         cloudActivityError.value = null
