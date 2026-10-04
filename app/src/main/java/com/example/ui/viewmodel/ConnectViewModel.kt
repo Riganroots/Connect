@@ -7,6 +7,7 @@ import com.example.data.cloud.CloudActivityRepository
 import com.example.data.cloud.CloudChatRepository
 import com.example.data.cloud.CloudCommunityRepository
 import com.example.data.cloud.CloudReportRepository
+import com.example.data.cloud.CloudBlockRepository
 import com.example.data.database.ConnectDatabase
 import com.example.data.database.ConnectRepository
 import com.example.data.models.Availability
@@ -42,6 +43,10 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     private val cloudChatRepository: CloudChatRepository
     private val cloudCommunityRepository: CloudCommunityRepository
     private val cloudReportRepository = CloudReportRepository(application)
+    private val cloudBlockRepository = CloudBlockRepository(application)
+    private var blockJob: Job? = null
+    val blockedUsers = MutableStateFlow<Map<String, String>>(emptyMap())
+    val blockError = MutableStateFlow<String?>(null)
     private var cloudActivityJob: Job? = null
     private var groupMembershipJob: Job? = null
     private var availabilityJob: Job? = null
@@ -87,11 +92,11 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         cloudChatRepository = CloudChatRepository(application)
         cloudCommunityRepository = CloudCommunityRepository(application)
 
-        val sessionPlans = combine(repository.allPlans, activeUserId) { plans, userId ->
+        val sessionPlans = combine(repository.allPlans, activeUserId, blockedUsers) { plans, userId, blocked ->
             if (userId == PREVIEW_USER_ID) {
                 plans.filter { it.cloudId.isBlank() }
             } else {
-                plans.filter { it.cloudId.isNotBlank() }
+                plans.filter { it.cloudId.isNotBlank() && it.organizerId !in blocked }
             }
         }
 
@@ -140,11 +145,11 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         allGroups = repository.allGroups
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-        allAvailabilities = combine(repository.allAvailabilities, activeUserId) { rows, userId ->
+        allAvailabilities = combine(repository.allAvailabilities, activeUserId, blockedUsers) { rows, userId, blocked ->
             if (userId == PREVIEW_USER_ID) {
                 rows.filter { it.userId.startsWith(PREVIEW_ROW_PREFIX) }
             } else {
-                rows.filterNot { it.userId.startsWith(PREVIEW_ROW_PREFIX) }
+                rows.filterNot { it.userId.startsWith(PREVIEW_ROW_PREFIX) || it.userId in blocked }
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -420,6 +425,16 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     ) {
         val stableId = userId.ifBlank { PREVIEW_USER_ID }
         activeUserId.value = stableId
+        blockJob?.cancel()
+        blockedUsers.value = emptyMap()
+        blockError.value = null
+        if (!isPreviewMode) {
+            blockJob = viewModelScope.launch {
+                cloudBlockRepository.observeBlockedUsers(stableId)
+                    .catch { blockError.value = "Could not sync blocked users. Try signing in again." }
+                    .collect { blockedUsers.value = it; blockError.value = null }
+            }
+        }
         cloudActivityJob?.cancel()
         cloudActivityError.value = null
         chatJobs.values.forEach { it.cancel() }
@@ -647,6 +662,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                     .catch { error ->
                         cloudChatError.value = error.localizedMessage ?: "Could not load activity chat."
                     }
+                    .combine(blockedUsers) { messages, blocked -> messages.filter { it.senderId !in blocked } }
                     .collect { messages ->
                         cloudChatError.value = null
                         state.value = messages
@@ -691,6 +707,20 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun setUserBlocked(targetUid: String, name: String, blocked: Boolean, onResult: (String?) -> Unit) {
+        val uid = activeUserId.value
+        if (uid == PREVIEW_USER_ID) { onResult("Sign in to block users."); return }
+        viewModelScope.launch {
+            val result = withTimeoutOrNull(20_000L) { cloudBlockRepository.setBlocked(uid, targetUid, name, blocked) }
+            if (uid != activeUserId.value) return@launch
+            if (result?.isSuccess == true) {
+                blockedUsers.value = if (blocked) blockedUsers.value + (targetUid to name) else blockedUsers.value - targetUid
+            }
+            onResult(if (result == null) "Update could not be confirmed. It may complete when your connection returns." else
+                result.exceptionOrNull()?.localizedMessage)
+        }
+    }
+
     fun sendChatMessage(planId: Long, text: String) {
         val cleanText = text.trim()
         if (cleanText.isBlank()) return
@@ -699,6 +729,11 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             val plan = repository.getPlanById(planId) ?: return@launch
             val userId = activeUserId.value
             val senderName = userProfile.value?.name ?: "Connect Member"
+
+            if (plan.organizerId in blockedUsers.value) {
+                cloudChatError.value = "Unblock this host before sending messages."
+                return@launch
+            }
 
             if (plan.cloudId.isNotBlank() && userId != PREVIEW_USER_ID) {
                 cloudChatRepository.sendMessage(

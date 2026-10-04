@@ -58,7 +58,7 @@ class CloudChatRepository(context: Context) {
                         messageText = text,
                         timestamp = timestamp,
                         isMe = senderId == userId
-                    )
+                    ).also { it.senderId = senderId }
                 }
 
                 trySend(messages)
