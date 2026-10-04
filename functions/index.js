@@ -1,4 +1,5 @@
 "use strict";
+const { notificationBlocked } = require("./blocking");
 
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
@@ -47,7 +48,8 @@ function chunks(items, size) {
   return result;
 }
 
-async function sendToUser(userId, data) {
+async function sendToUser(userId, data, sourceUserId) {
+  if (await notificationBlocked(db, userId, sourceUserId)) return;
   const devices = await deviceRecordsForUser(userId);
   if (devices.length === 0) return;
 
@@ -138,7 +140,7 @@ exports.notifyActivityChatMessage = onDocumentCreated(
         type: "activity_chat",
         targetId: activityId,
         activityTitle,
-      })
+      }, senderId)
     );
 
     await Promise.allSettled(tasks);
@@ -174,6 +176,6 @@ exports.notifyHostWhenActivityJoined = onDocumentCreated(
       body: `Someone joined ${activityTitle}.`,
       type: "activity_join",
       targetId: activityId,
-    });
+    }, joiningUserId);
   }
 );
