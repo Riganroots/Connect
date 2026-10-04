@@ -140,3 +140,48 @@ test('unknown collections and unsupported client deletions default to denied', a
   await assertFails(deleteDoc(doc(db, 'activities/walk')));
   await assertFails(deleteDoc(doc(db, 'users/host')));
 });
+
+test('activity member submits private report; clients cannot retrieve or alter it', async () => {
+  await createWalk(); await join('guest'); const db = dbFor('guest');
+  const ref = doc(db, 'reports/complaint');
+  const data = { reporterId: 'guest', activityId: 'walk', reportedUserId: 'host',
+    reason: 'Unsafe activity', details: 'Unsafe meeting location', createdAt: serverTimestamp() };
+  await assertSucceeds(setDoc(ref, data));
+  await assertFails(getDoc(ref));
+  await assertFails(getDoc(doc(dbFor('host'), 'reports/complaint')));
+  await assertFails(getDocs(collection(db, 'reports')));
+  await assertFails(updateDoc(ref, { reason: 'Other' }));
+  await assertFails(deleteDoc(ref));
+});
+test('report rejects spoofed identities, moderator fields, and invalid detail', async () => {
+  await createWalk(); await join('guest'); const db = dbFor('guest');
+  const ref = doc(db, 'reports/complaint');
+  const data = { reporterId: 'guest', activityId: 'walk', reportedUserId: 'host',
+    reason: 'Spam or scam', details: '', createdAt: serverTimestamp() };
+  for (const overrides of [{ reporterId: 'host' }, { reportedUserId: 'stranger' },
+    { reason: 'invalid' }, { details: 'x'.repeat(1001) }, { status: 'approved' }]) {
+    await assertFails(setDoc(ref, { ...data, ...overrides }));
+  }
+});
+test('outsiders and hosts cannot report through member reporting flow', async () => {
+  await createWalk();
+  const data = { reporterId: 'guest', activityId: 'walk', reportedUserId: 'host',
+    reason: 'Other', details: '', createdAt: serverTimestamp() };
+  await assertFails(setDoc(doc(dbFor('guest'), 'reports/outsider'), data));
+  await assertFails(setDoc(doc(dbFor('host'), 'reports/self'), { ...data, reporterId: 'host' }));
+});
+
+test('blocklist is private, supports sync, and can be unblocked', async () => {
+  const db = dbFor('guest'), ref = doc(db, 'users/guest/blockedUsers/host');
+  await assertSucceeds(setDoc(ref, { displayName: 'Host', blockedAt: serverTimestamp() }));
+  await assertSucceeds(getDocs(collection(db, 'users/guest/blockedUsers')));
+  await assertFails(getDoc(doc(dbFor('host'), 'users/guest/blockedUsers/host')));
+  await assertFails(setDoc(doc(dbFor('host'), 'users/guest/blockedUsers/other'), { displayName: 'Other', blockedAt: serverTimestamp() }));
+  await assertFails(deleteDoc(doc(dbFor('host'), 'users/guest/blockedUsers/host')));
+  await assertSucceeds(deleteDoc(ref));
+});
+test('self blocks and extra privilege fields are rejected', async () => {
+  const db = dbFor('guest');
+  await assertFails(setDoc(doc(db, 'users/guest/blockedUsers/guest'), { displayName: 'Me', blockedAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(db, 'users/guest/blockedUsers/host'), { displayName: 'Host', blockedAt: serverTimestamp(), admin: true }));
+});

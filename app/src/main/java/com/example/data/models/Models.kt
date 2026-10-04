@@ -3,6 +3,7 @@ package com.example.data.models
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.Ignore
 
 @Entity(tableName = "profiles")
 data class UserProfile(
@@ -72,7 +73,10 @@ data class ChatMessage(
     val messageText: String,
     val timestamp: Long = System.currentTimeMillis(),
     val isMe: Boolean = false
-)
+) {
+    // Cloud identity is not persisted in the preview-only Room chat table.
+    @Ignore var senderId: String = ""
+}
 
 @Entity(tableName = "notifications")
 data class AppNotification(
@@ -97,4 +101,3 @@ data class DiscoverSpot(
     val bestTime: String,
     val whyVisit: String
 )
-
