@@ -65,6 +65,10 @@ import com.example.ui.components.AppHeader
 import com.example.ui.components.ConnectBottomNavigation
 import com.example.ui.components.GroupCard
 import com.example.ui.components.PlanCard
+import com.example.ui.components.ReportActivityButton
+import com.example.ui.components.BlockUserButton
+import com.example.ui.components.BlockedUsersManager
+import com.example.ui.components.DeleteAccountButton
 import com.example.ui.screens.CreatePlanScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.viewmodel.ConnectViewModel
@@ -106,7 +110,10 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize()
                     ) { innerPadding ->
                         Box(modifier = Modifier.padding(innerPadding)) {
-                            ConnectApp(viewModel = viewModel, onSignOut = authViewModel::signOut)
+                            ConnectApp(viewModel = viewModel, onSignOut = authViewModel::signOut,
+                                onDeleteAccount = { password, result ->
+                                    authViewModel.requestAccountDeletion(password, viewModel::endSession, result)
+                                })
                         }
                     }
                 }
@@ -136,7 +143,8 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit) {
+fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit,
+    onDeleteAccount: (String, (String?) -> Unit) -> Unit = { _, result -> result("Deletion is unavailable.") }) {
     val currentScreen by viewModel.currentScreen.collectAsStateWithLifecycle()
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
 
@@ -194,7 +202,8 @@ fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit) {
                         ProfileScreen(
                             viewModel = viewModel,
                             onEditProfile = { showProfileCreator = true },
-                            onSignOut = onSignOut
+                            onSignOut = onSignOut,
+                            onDeleteAccount = onDeleteAccount
                         )
                     }
                     is Screen.ChatDetail -> {
@@ -222,7 +231,8 @@ fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit) {
 
 // ======================== HOME SCREEN ========================
 @Composable
-fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSignOut: () -> Unit) {
+fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSignOut: () -> Unit,
+    onDeleteAccount: (String, (String?) -> Unit) -> Unit = { _, result -> result("Deletion is unavailable.") }) {
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
     val plans by viewModel.allPlans.collectAsStateWithLifecycle()
     val currentUserId by viewModel.currentUserId.collectAsStateWithLifecycle()
@@ -476,6 +486,8 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                         Text("Edit profile", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
 
+                    if (!isPreviewMode) BlockedUsersManager(viewModel)
+                    if (!isPreviewMode) DeleteAccountButton(onDeleteAccount)
                     TextButton(
                         onClick = onSignOut,
                         colors = ButtonDefaults.textButtonColors(contentColor = ConnectGrayMedium)
@@ -1324,6 +1336,8 @@ fun ChatDetailScreen(
     val chatsFlow = remember(planId) { viewModel.getChatsForPlan(planId) }
     val chats by chatsFlow.collectAsStateWithLifecycle()
     val chatError by viewModel.cloudChatError.collectAsStateWithLifecycle()
+    val blockedUsers by viewModel.blockedUsers.collectAsStateWithLifecycle()
+    val blockError by viewModel.blockError.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
     var hostPlan by remember { mutableStateOf<Plan?>(null) }
@@ -1338,6 +1352,15 @@ fun ChatDetailScreen(
         if (chats.isNotEmpty()) {
             listState.animateScrollToItem(chats.lastIndex)
         }
+    }
+
+    if (hostPlan?.let { it.organizerId in blockedUsers } == true) {
+        Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
+            Text("This activity's host is blocked.")
+            BlockUserButton(viewModel, hostPlan!!.organizerId, hostPlan!!.organizerName)
+            TextButton(onClick = onBack) { Text("Back to activities") }
+        }
+        return
     }
 
     Column(
@@ -1384,7 +1407,7 @@ fun ChatDetailScreen(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Plan Host: ${hostPlan?.organizerName ?: "Host"}",
                         fontSize = 13.sp,
@@ -1397,12 +1420,17 @@ fun ChatDetailScreen(
                         color = ConnectGrayMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.width(220.dp)
+                        modifier = Modifier.fillMaxWidth()
                     )
+                }
+                ReportActivityButton(viewModel, hostPlan, planId)
+                if (hostPlan?.cloudId?.isNotBlank() == true) {
+                    BlockUserButton(viewModel, hostPlan!!.organizerId, hostPlan!!.organizerName)
                 }
             }
         }
 
+        blockError?.let { Text(it, modifier = Modifier.padding(12.dp)) }
         if (chatError != null) {
             Surface(
                 modifier = Modifier
@@ -1495,6 +1523,7 @@ fun ChatDetailScreen(
                 ) {
                     // Small Name stamp if other members
                     if (!chat.isMe) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = chat.senderName,
                             fontSize = 10.sp,
@@ -1502,6 +1531,8 @@ fun ChatDetailScreen(
                             color = ConnectGrayMedium,
                             modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
                         )
+                        BlockUserButton(viewModel, chat.senderId, chat.senderName)
+                        }
                     }
 
                     // Rounded bubble

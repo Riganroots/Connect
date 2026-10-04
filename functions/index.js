@@ -1,4 +1,5 @@
 "use strict";
+const { notificationBlocked } = require("./blocking");
 
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
@@ -47,7 +48,8 @@ function chunks(items, size) {
   return result;
 }
 
-async function sendToUser(userId, data) {
+async function sendToUser(userId, data, sourceUserId) {
+  if (await notificationBlocked(db, userId, sourceUserId)) return;
   const devices = await deviceRecordsForUser(userId);
   if (devices.length === 0) return;
 
@@ -138,7 +140,7 @@ exports.notifyActivityChatMessage = onDocumentCreated(
         type: "activity_chat",
         targetId: activityId,
         activityTitle,
-      })
+      }, senderId)
     );
 
     await Promise.allSettled(tasks);
@@ -174,6 +176,34 @@ exports.notifyHostWhenActivityJoined = onDocumentCreated(
       body: `Someone joined ${activityTitle}.`,
       type: "activity_join",
       targetId: activityId,
-    });
+    }, joiningUserId);
   }
 );
+
+// Own-account deletion only. No arbitrary UID/path is accepted from the client.
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { getAuth } = require("firebase-admin/auth");
+const { deletionIdentity, cleanupAccount } = require("./account-deletion");
+exports.requestAccountDeletion = onCall(async (request) => {
+  let uid;
+  try { uid = deletionIdentity(request); }
+  catch (error) { throw new HttpsError(error.code, error.message); }
+  try {
+    await db.doc(`accountDeletionJobs/${uid}`).create({
+      status: "queued", requestedAt: require("firebase-admin/firestore").FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    if (error.code !== 6 && error.code !== "already-exists") throw error;
+  }
+  return { accepted: true };
+});
+exports.processAccountDeletion = onDocumentCreated({
+  document: "accountDeletionJobs/{uid}", retry: true, timeoutSeconds: 540,
+}, async (event) => {
+  const ref = db.doc(`accountDeletionJobs/${event.params.uid}`);
+  const job = await ref.get();
+  if (!job.exists || job.get("status") === "complete") return;
+  await ref.update({ status: "processing" });
+  await cleanupAccount(db, getAuth(), event.params.uid);
+  await ref.update({ status: "complete", completedAt: require("firebase-admin/firestore").FieldValue.serverTimestamp() });
+});

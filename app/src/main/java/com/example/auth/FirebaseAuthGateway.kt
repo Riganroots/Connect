@@ -6,6 +6,8 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.EmailAuthProvider
+import com.google.firebase.functions.FirebaseFunctions
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 
@@ -57,8 +59,32 @@ class FirebaseAuthGateway(context: Context) {
         }
     }
 
+    suspend fun requestAccountDeletion(password: String): Result<Unit> {
+        val user = auth?.currentUser ?: return Result.failure(IllegalStateException("Sign in first."))
+        val email = user.email ?: return Result.failure(IllegalStateException("Password confirmation is unavailable for this account."))
+        return try {
+            user.reauthenticate(EmailAuthProvider.getCredential(email, password)).awaitDeletionTask()
+            user.getIdToken(true).awaitDeletionTask()
+            val response = FirebaseFunctions.getInstance(firebaseApp!!, "asia-south1")
+                .getHttpsCallable("requestAccountDeletion").call(emptyMap<String, Any>()).awaitDeletionTask()
+            val accepted = (response.data as? Map<*, *>)?.get("accepted") == true
+            if (accepted) Result.success(Unit) else Result.failure(IllegalStateException("Deletion was not accepted."))
+        } catch (error: Exception) {
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            Result.failure(error)
+        }
+    }
+
     fun signOut() {
         auth?.signOut()
+    }
+}
+
+private suspend fun <T> Task<T>.awaitDeletionTask(): T = suspendCancellableCoroutine { continuation ->
+    addOnCompleteListener { task ->
+        if (!continuation.isActive) return@addOnCompleteListener
+        if (task.isSuccessful) continuation.resume(task.result)
+        else continuation.resumeWith(Result.failure(task.exception ?: IllegalStateException("Deletion request failed.")))
     }
 }
 

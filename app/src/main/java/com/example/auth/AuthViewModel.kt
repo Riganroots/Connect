@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.example.data.database.ConnectDatabase
 
 data class AuthUiState(
     val isFirebaseConfigured: Boolean,
@@ -130,6 +133,31 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 isFirebaseConfigured = gateway.isConfigured,
                 user = null
             )
+        }
+    }
+
+    fun requestAccountDeletion(password: String, onAccepted: () -> Unit, onResult: (String?) -> Unit) {
+        if (password.isBlank()) { onResult("Enter your current password."); return }
+        viewModelScope.launch {
+            val result = withTimeoutOrNull(30_000L) { gateway.requestAccountDeletion(password) }
+            if (result?.isSuccess == true) {
+                onAccepted()
+                gateway.signOut()
+                _uiState.value = AuthUiState(isFirebaseConfigured = gateway.isConfigured,
+                    infoMessage = "Account deletion requested. You have been signed out while cleanup completes.")
+                // Clear this device's Room mirror; do not delete or reset the database file.
+                try {
+                    withContext(Dispatchers.IO) { ConnectDatabase.getDatabase(getApplication()).clearAllTables() }
+                } catch (error: Exception) {
+                    if (error is kotlinx.coroutines.CancellationException) throw error
+                    // Server deletion is already accepted; do not imply it failed due to a local cache error.
+                    _uiState.value = _uiState.value.copy(infoMessage = "Deletion requested. Local cache cleanup failed; clear app storage on this device.")
+                }
+                onResult(null)
+            } else {
+                onResult(if (result == null) "Request could not be confirmed. It may have been accepted; try again when connected." else
+                    result.exceptionOrNull()?.localizedMessage ?: "Could not request account deletion.")
+            }
         }
     }
 

@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "firebase emulators:exec --project demo-connect-rules --config ../firebase.json --only firestore \"node --test firestore.test.mjs\""
+    "test": "firebase emulators:exec --project demo-connect-rules --config ../firebase.json --only firestore \"node --test --test-concurrency=1 firestore.test.mjs ../functions/account-deletion.integration.test.js\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",
