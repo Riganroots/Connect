@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "358452282819",
+    "project_id": "connect-f0d00",
+    "storage_bucket": "connect-f0d00.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:358452282819:android:5dc6d971acc8f393176976",
+        "android_client_info": {
+          "package_name": "com.connectapp.npl"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "358452282819-6si3k6295sf1vhgpj12tt2avirrgkuge.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAKPHZ-zrcsc-auyIyjqBHkHxuP-asv-DA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "358452282819-6si3k6295sf1vhgpj12tt2avirrgkuge.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

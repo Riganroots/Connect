@@ -1,17 +1,16 @@
 {
-  "indexes": [
+  "indexes": [],
+  "fieldOverrides": [
     {
       "collectionGroup": "joinedActivities",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
+      "fieldPath": "activityId",
+      "indexes": [
         {
-          "fieldPath": "activityId",
-          "order": "ASCENDING"
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
         }
       ]
-    }
-  ],
-  "fieldOverrides": [
+    },
     {
       "collectionGroup": "savedActivities",
       "fieldPath": "activityId",
