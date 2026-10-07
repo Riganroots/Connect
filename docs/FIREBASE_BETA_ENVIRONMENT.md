@@ -7,3 +7,18 @@ The debug Android app is registered as `1:358452282819:android:5dc6d971acc8f3931
 Always specify `--project connect-f0d00` for beta deployment. Deploy indexes, the deletion worker, rules, then the callable and notification functions. Cloud Functions require Blaze billing. Enabling the Firestore API alone does not enable email/password Authentication or Cloud Functions. Confirm those separately and run the acceptance checks in BETA02_TESTING.md before distributing a new debug APK.
 
 The existing beta02 APK built before this configuration change still points to `connect-dae99`. Download a successful Android CI artifact built from this branch or its merged commit to test `connect-f0d00`. Never use CI's ephemeral release signing key for Play uploads.
+
+## Testing while billing is disabled
+
+Debug builds set SERVER_FUNCTIONS_ENABLED=false. Profile explains that push
+notifications and account deletion are unavailable, hides the deletion action,
+and the authentication gateway rejects deletion before reauthentication or a
+server call. Release behavior is unchanged. This debug APK is for disposable
+accounts and limited internal testing; it is not ready for a public release.
+
+Email/password Authentication and Firestore access still need verification.
+Test sign-in, activity creation/join/leave/save, member chat, reports and local
+blocking visibility. Push suppression and deletion acceptance checks remain
+pending until billing is active, the functions are deployed, and the debug flag
+is deliberately enabled. Debug token registration does not prove server push
+notifications are available.

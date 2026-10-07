@@ -487,7 +487,16 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                     }
 
                     if (!isPreviewMode) BlockedUsersManager(viewModel)
-                    if (!isPreviewMode) DeleteAccountButton(onDeleteAccount)
+                    if (!isPreviewMode && BuildConfig.SERVER_FUNCTIONS_ENABLED) {
+                        DeleteAccountButton(onDeleteAccount)
+                    }
+                    if (!isPreviewMode && !BuildConfig.SERVER_FUNCTIONS_ENABLED) {
+                        Text(
+                            "Testing build: push notifications and account deletion are unavailable.",
+                            fontSize = 11.sp,
+                            color = ConnectGrayMedium
+                        )
+                    }
                     TextButton(
                         onClick = onSignOut,
                         colors = ButtonDefaults.textButtonColors(contentColor = ConnectGrayMedium)

@@ -60,6 +60,9 @@ class FirebaseAuthGateway(context: Context) {
     }
 
     suspend fun requestAccountDeletion(password: String): Result<Unit> {
+        if (!com.example.BuildConfig.SERVER_FUNCTIONS_ENABLED) {
+            return Result.failure(IllegalStateException("Account deletion is unavailable in this testing build."))
+        }
         val user = auth?.currentUser ?: return Result.failure(IllegalStateException("Sign in first."))
         val email = user.email ?: return Result.failure(IllegalStateException("Password confirmation is unavailable for this account."))
         return try {
