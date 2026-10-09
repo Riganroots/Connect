@@ -402,7 +402,8 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                     },
                     selectedContentColor = ConnectDarkGreen,
                     unselectedContentColor = ConnectGrayMedium
-                )                Tab(
+                )
+                Tab(
                     selected = subTabSelected == 0,
                     onClick = { viewModel.homeTab.value = 0 },
                     text = {
