@@ -61,7 +61,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
     val cloudCommunityError by viewModel.cloudCommunityError.collectAsStateWithLifecycle()
 
     var showAvailabilityPost by remember { mutableStateOf(false) }
-    var subTabSelected by remember { mutableStateOf(0) } // 0 = Discover Guide, 1 = Live Community Feed
+    val subTabSelected by viewModel.homeTab.collectAsStateWithLifecycle() // 0 = Discover Guide, 1 = Live Community Feed
     
     var selectedSpotDetail by remember { mutableStateOf<com.example.data.models.DiscoverSpot?>(null) }
     var showSurpriseDialog by remember { mutableStateOf(false) }
@@ -447,7 +447,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
             ) {
                 Tab(
                     selected = subTabSelected == 0,
-                    onClick = { subTabSelected = 0 },
+                    onClick = { viewModel.homeTab.value = 0 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("Explore", fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -458,7 +458,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                 )
                 Tab(
                     selected = subTabSelected == 1,
-                    onClick = { subTabSelected = 1 },
+                    onClick = { viewModel.homeTab.value = 1 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("Community", fontWeight = FontWeight.Bold, fontSize = 13.sp)
