@@ -289,64 +289,11 @@ fun HomeScreen(viewModel: ConnectViewModel) {
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = ConnectDarkGreen),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Hi, ${profile?.name?.substringBefore(" ") ?: "there"} 👋",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ConnectMint.copy(alpha = 0.9f)
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = "What do you want to do today?",
-                            fontSize = 18.sp,
-                            lineHeight = 22.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Discover a place, join a local plan, or create your own.",
-                            fontSize = 10.sp,
-                            lineHeight = 14.sp,
-                            color = ConnectMint.copy(alpha = 0.85f)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    FilledTonalButton(
-                        onClick = { viewModel.navigateTo(Screen.CreatePlan) },
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = ConnectMint,
-                            contentColor = ConnectDarkGreen
-                        ),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 9.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Create", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
-                    }
-                }
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp)) {
+                Text("Make plans. Meet people.", fontSize = 26.sp, lineHeight = 32.sp,
+                    fontWeight = FontWeight.Bold, color = ConnectGrayDark)
+                Text("Small activities. Good company. Around Kathmandu.", fontSize = 14.sp,
+                    lineHeight = 20.sp, color = ConnectGrayMedium, modifier = Modifier.padding(top = 6.dp))
             }
         }
 
@@ -440,22 +387,11 @@ fun HomeScreen(viewModel: ConnectViewModel) {
         // 1.5 Sub-tabs Selection
         item {
             TabRow(
-                selectedTabIndex = subTabSelected,
+                selectedTabIndex = 1 - subTabSelected,
                 containerColor = Color.Transparent,
                 contentColor = ConnectDarkGreen,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
-                Tab(
-                    selected = subTabSelected == 0,
-                    onClick = { viewModel.homeTab.value = 0 },
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Explore", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                    },
-                    selectedContentColor = ConnectDarkGreen,
-                    unselectedContentColor = ConnectGrayMedium
-                )
                 Tab(
                     selected = subTabSelected == 1,
                     onClick = { viewModel.homeTab.value = 1 },
@@ -466,7 +402,18 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                     },
                     selectedContentColor = ConnectDarkGreen,
                     unselectedContentColor = ConnectGrayMedium
+                )                Tab(
+                    selected = subTabSelected == 0,
+                    onClick = { viewModel.homeTab.value = 0 },
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Explore", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    },
+                    selectedContentColor = ConnectDarkGreen,
+                    unselectedContentColor = ConnectGrayMedium
                 )
+
             }
             Spacer(modifier = Modifier.height(10.dp))
         }
@@ -474,7 +421,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
         // 1.8 Global Neighborhood row selector
         item {
             Text(
-                text = "Neighborhood Filter",
+                text = "Area",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -661,7 +608,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
             // 2. Categories List Selector
             item {
                 Text(
-                    text = "Categories",
+                    text = "Activity type",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -675,6 +622,91 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                 Spacer(modifier = Modifier.height(14.dp))
             }
 
+            // 5. Activity Feed header
+            item {
+                val selectedAreaLabel = when (activeNeighborhood) {
+                    "All" -> "All Areas"
+                    "Patan" -> "Patan & Jhamsikhel"
+                    else -> activeNeighborhood
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (activeCategory == "All") "Activities in $selectedAreaLabel" else "$activeCategory in $selectedAreaLabel",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ConnectGrayDark,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (activeCategory != "All" || activeNeighborhood != "All") {
+                        TextButton(
+                            onClick = {
+                                viewModel.selectedCategory.value = "All"
+                                viewModel.selectedNeighborhood.value = "All"
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.heightIn(min = 32.dp)
+                        ) {
+                            Text(
+                                text = "Clear filters",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ConnectDarkGreen
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // 6. Plans list or Empty placeholders
+            if (plans.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Empty list",
+                                tint = ConnectGrayMedium,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "No activities found yet.",
+                                color = ConnectGrayDark,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Create the first activity or change your search and filters.",
+                                color = ConnectGrayMedium,
+                                fontSize = 11.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            )
+                        }
+                    }
+                }
+            } else {
+                items(plans) { plan ->
+                    PlanCard(
+                        plan = plan,
+                        onJoinToggle = { viewModel.toggleJoinPlan(plan.id) },
+                        onSaveToggle = { viewModel.toggleSavePlan(plan.id) },
+                        onChatClick = { viewModel.navigateTo(Screen.ChatDetail(plan.id)) }
+                    )
+                }
+            }
             // 2.5. Kathmandu Interactive Activity Map
             item {
                 KathmanduActivityMap(
@@ -778,7 +810,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Nobody is live right now. Be the first to shout!",
+                            text = "Free to meet? Share what you have in mind.",
                             textAlign = TextAlign.Center,
                             fontSize = 12.sp,
                             color = ConnectGrayMedium
@@ -825,91 +857,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                 Spacer(modifier = Modifier.height(20.dp))
             }
 
-            // 5. Activity Feed header
-            item {
-                val selectedAreaLabel = when (activeNeighborhood) {
-                    "All" -> "All Areas"
-                    "Patan" -> "Patan & Jhamsikhel"
-                    else -> activeNeighborhood
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (activeCategory == "All") "Plans in $selectedAreaLabel" else "$activeCategory in $selectedAreaLabel",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ConnectGrayDark,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (activeCategory != "All" || activeNeighborhood != "All") {
-                        TextButton(
-                            onClick = {
-                                viewModel.selectedCategory.value = "All"
-                                viewModel.selectedNeighborhood.value = "All"
-                            },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                            modifier = Modifier.heightIn(min = 32.dp)
-                        ) {
-                            Text(
-                                text = "Reset Filters",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ConnectDarkGreen
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
 
-            // 6. Plans list or Empty placeholders
-            if (plans.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "Empty list",
-                                tint = ConnectGrayMedium,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "No activities found yet.",
-                                color = ConnectGrayDark,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Create the first activity or change your search and filters.",
-                                color = ConnectGrayMedium,
-                                fontSize = 11.sp,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 24.dp)
-                            )
-                        }
-                    }
-                }
-            } else {
-                items(plans) { plan ->
-                    PlanCard(
-                        plan = plan,
-                        onJoinToggle = { viewModel.toggleJoinPlan(plan.id) },
-                        onSaveToggle = { viewModel.toggleSavePlan(plan.id) },
-                        onChatClick = { viewModel.navigateTo(Screen.ChatDetail(plan.id)) }
-                    )
-                }
-            }
         }
     }
 }

@@ -174,7 +174,7 @@ fun AppHeader(
     Surface(
         color = ConnectWhite,
         contentColor = ConnectGrayDark,
-        shadowElevation = 2.dp,
+        shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -187,7 +187,7 @@ fun AppHeader(
                 Text(
                     text = "Connect",
                     color = ConnectDarkGreen,
-                    fontSize = 22.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -201,7 +201,7 @@ fun AppHeader(
                     Text(
                         text = profile?.location?.takeIf { it.isNotBlank() } ?: "Kathmandu, Nepal",
                         color = ConnectGrayMedium,
-                        fontSize = 11.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -229,7 +229,7 @@ fun AppHeader(
                 IconButton(
                     onClick = { showNotifications = true },
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .background(ConnectCream)
                 ) {
@@ -256,7 +256,7 @@ fun AppHeader(
 
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(ConnectCream)
                     .clickable(onClick = onConfigureProfile),
@@ -287,10 +287,10 @@ fun ConnectBottomNavigation(
 ) {
     NavigationBar(
         containerColor = ConnectWhite,
-        tonalElevation = 8.dp,
+        tonalElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(10.dp)
+            .border(1.dp, ConnectGrayLight)
     ) {
         NavigationBarItem(
             selected = currentScreen is Screen.Home,
@@ -298,10 +298,10 @@ fun ConnectBottomNavigation(
             icon = {
                 Icon(
                     imageVector = Icons.Default.Home,
-                    contentDescription = "Discover"
+                    contentDescription = "Activities"
                 )
             },
-            label = { Text("Discover", fontWeight = FontWeight.SemiBold) },
+            label = { Text("Activities", fontWeight = FontWeight.SemiBold) },
             colors = connectNavigationColors()
         )
 

@@ -126,23 +126,23 @@ fun PlanCard(
 
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 7.dp),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = ConnectWhite),
         border = BorderStroke(1.dp, ConnectGrayLight),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(15.dp),
+            modifier = Modifier.fillMaxWidth().padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Surface(shape = RoundedCornerShape(20.dp), color = ConnectMint) {
+                        Surface(shape = RoundedCornerShape(12.dp), color = ConnectMint) {
                             Text(
                                 text = plan.category,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                fontSize = 9.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = ConnectDarkGreen
                             )
@@ -156,15 +156,15 @@ fun PlanCard(
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Spacer(modifier = Modifier.width(2.dp))
-                                Text("Verified host", fontSize = 9.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                                Text("Verified host", fontSize = 12.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                     Spacer(modifier = Modifier.height(7.dp))
                     Text(
                         text = plan.title,
-                        fontSize = 17.sp,
-                        lineHeight = 21.sp,
+                        fontSize = 20.sp,
+                        lineHeight = 26.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = ConnectGrayDark,
                         maxLines = 2,
@@ -174,7 +174,7 @@ fun PlanCard(
 
                 IconButton(
                     onClick = onSaveToggle,
-                    modifier = Modifier.size(38.dp).clip(CircleShape).background(ConnectCream)
+                    modifier = Modifier.size(48.dp).clip(CircleShape).background(ConnectCream)
                 ) {
                     Icon(
                         imageVector = if (plan.isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -193,14 +193,14 @@ fun PlanCard(
                     Text(
                         text = plan.organizerName.take(1).uppercase(),
                         color = Color.White,
-                        fontSize = 10.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
                 Spacer(modifier = Modifier.width(7.dp))
                 Text(
                     text = plan.organizerName,
-                    fontSize = 11.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = ConnectGrayDark,
                     maxLines = 1,
@@ -210,15 +210,15 @@ fun PlanCard(
                 if (plan.organizerRating > 0.0) {
                     Text(
                         text = "★ ${plan.organizerRating}",
-                        fontSize = 10.sp,
+                        fontSize = 13.sp,
                         color = ConnectGrayMedium
                     )
                 }
             }
 
-            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = ConnectCream) {
+            Surface(modifier = Modifier.fillMaxWidth(), color = ConnectWhite) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
+                    modifier = Modifier.padding(vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
                     PlanMetaRow(icon = Icons.Default.LocationOn, text = plan.location)
@@ -231,7 +231,7 @@ fun PlanCard(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = plan.pricePerPerson,
-                            fontSize = 10.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = ConnectDarkGreen,
                             maxLines = 1,
@@ -243,8 +243,8 @@ fun PlanCard(
 
             Text(
                 text = plan.description,
-                fontSize = 11.sp,
-                lineHeight = 15.sp,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
                 color = ConnectGrayMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -253,16 +253,16 @@ fun PlanCard(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Person, contentDescription = null, tint = ConnectGrayMedium, modifier = Modifier.size(15.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("${plan.joinedCount} joined", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark)
-                Text("  •  ${plan.participantsNeeded} more wanted", fontSize = 10.sp, color = ConnectGrayMedium)
+                Text("${plan.joinedCount} joined", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark)
+                Text("  •  ${plan.participantsNeeded} more wanted", fontSize = 13.sp, color = ConnectGrayMedium)
             }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = onChatClick,
                     enabled = !chatRequiresJoin,
-                    modifier = Modifier.weight(0.42f).height(42.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(10.dp),
                     border = BorderStroke(1.dp, ConnectGrayLight),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = ConnectDarkGreen)
                 ) {
@@ -274,15 +274,15 @@ fun PlanCard(
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
                         if (chatRequiresJoin) "Join to chat" else "Chat",
-                        fontSize = if (chatRequiresJoin) 9.sp else 11.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
                 Button(
                     onClick = onJoinToggle,
-                    modifier = Modifier.weight(0.58f).height(42.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (plan.isJoinedByMe) ConnectCream else ConnectDarkGreen,
                         contentColor = if (plan.isJoinedByMe) ConnectDarkGreen else Color.White
@@ -290,8 +290,8 @@ fun PlanCard(
                     border = if (plan.isJoinedByMe) BorderStroke(1.dp, ConnectMint) else null
                 ) {
                     Text(
-                        text = if (plan.isJoinedByMe) "✓ Joined" else "Join activity",
-                        fontSize = 11.sp,
+                        text = if (plan.isJoinedByMe) "Joined" else "Join activity",
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
@@ -311,7 +311,7 @@ private fun PlanMetaRow(
         Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = text,
-            fontSize = 10.sp,
+            fontSize = 13.sp,
             color = ConnectGrayDark,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
