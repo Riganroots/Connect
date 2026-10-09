@@ -8,6 +8,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.Transaction
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.models.UserProfile
@@ -42,6 +43,19 @@ interface ConnectDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlan(plan: Plan): Long
+
+    @Transaction
+    suspend fun upsertCloudPlan(plan: Plan): Long {
+        val existing = getPlanByCloudId(plan.cloudId)
+        return insertPlan(plan.copy(id = existing?.id ?: 0))
+    }
+
+    @Transaction
+    suspend fun syncCloudPlans(plans: List<Plan>) {
+        plans.forEach { upsertCloudPlan(it) }
+        val ids = plans.map { it.cloudId }.filter { it.isNotBlank() }
+        if (ids.isEmpty()) deleteAllCloudPlans() else deleteCloudPlansExcept(ids)
+    }
 
     @Query("DELETE FROM plans WHERE cloudId != ''")
     suspend fun deleteAllCloudPlans()
@@ -208,21 +222,9 @@ class ConnectRepository(private val dao: ConnectDao) {
         dao.deleteAllCloudPlans()
     }
 
-    suspend fun syncCloudPlans(plans: List<Plan>) {
-        for (plan in plans) {
-            val existing = dao.getPlanByCloudId(plan.cloudId)
-            dao.insertPlan(
-                plan.copy(id = existing?.id ?: 0)
-            )
-        }
+    suspend fun syncCloudPlans(plans: List<Plan>) = dao.syncCloudPlans(plans)
 
-        val cloudIds = plans.map { it.cloudId }.filter { it.isNotBlank() }
-        if (cloudIds.isEmpty()) {
-            dao.deleteAllCloudPlans()
-        } else {
-            dao.deleteCloudPlansExcept(cloudIds)
-        }
-    }
+    suspend fun upsertCloudPlan(plan: Plan): Long = dao.upsertCloudPlan(plan)
 
     suspend fun toggleJoinPlan(planId: Long) {
         val plan = dao.getPlanById(planId) ?: return

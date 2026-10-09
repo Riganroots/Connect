@@ -40,6 +40,9 @@ fun CreatePlanScreen(
     val description by viewModel.formDescription.collectAsStateWithLifecycle()
     val currentUserId by viewModel.currentUserId.collectAsStateWithLifecycle()
 
+    val publishError by viewModel.publishError.collectAsStateWithLifecycle()
+    val isPublishing by viewModel.isPublishing.collectAsStateWithLifecycle()
+
     var showValidation by remember { mutableStateOf(false) }
     val missingRequired = title.isBlank() || location.isBlank() || date.isBlank() || description.isBlank()
 
@@ -235,7 +238,15 @@ fun CreatePlanScreen(
 
         Surface(color = ConnectWhite, shadowElevation = 8.dp, modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 11.dp)) {
+                publishError?.let { message ->
+                    Text(message, color = ConnectError, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+                }
+                if (isPublishing) {
+                    Text("Saving activity… Stay connected. Your activity appears in Community after confirmation.",
+                        fontSize = 11.sp, modifier = Modifier.padding(bottom = 8.dp))
+                }
                 Button(
+                    enabled = !isPublishing,
                     onClick = {
                         showValidation = true
                         if (!missingRequired) {
@@ -246,7 +257,7 @@ fun CreatePlanScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = ConnectDarkGreen)
                 ) {
-                    Text("Publish activity", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                    Text(if (isPublishing) "Publishing…" else "Publish activity", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
                 }
                 Text(
                     if (currentUserId == "preview-user") {

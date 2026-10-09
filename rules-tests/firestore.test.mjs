@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { after, before, beforeEach, test } from 'node:test';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
@@ -44,6 +45,22 @@ test('host creates activity and membership atomically; signed-in discovery query
   await assertSucceeds(createWalk());
   const db = dbFor('guest');
   await assertSucceeds(getDocs(query(collection(db, 'activities'), orderBy('createdAt', 'desc'))));
+});
+test('second account sees published activity with its own empty joined and saved collections', async () => {
+  await createWalk();
+  const guest = dbFor('guest');
+  const rows = await assertSucceeds(getDocs(query(collection(guest, 'activities'), orderBy('createdAt', 'desc'))));
+  assert.equal(rows.size, 1);
+  assert.equal(rows.docs[0].id, 'walk');
+  assert.equal(rows.docs[0].data().title, 'Saturday walk');
+  for (const name of ['joinedActivities', 'savedActivities']) {
+    const selections = await assertSucceeds(getDocs(collection(guest, `users/guest/${name}`)));
+    assert.equal(selections.size, 0);
+  }
+  await join('guest');
+  assert.equal((await getDocs(collection(guest, 'users/guest/joinedActivities'))).size, 1);
+  const host = dbFor('host');
+  assert.equal((await getDoc(doc(host, 'activities/walk'))).data().joinedCount, 2);
 });
 test('anonymous users cannot discover, read profiles, or write', async () => {
   await createWalk(); const db = env.unauthenticatedContext().firestore();

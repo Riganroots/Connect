@@ -56,6 +56,9 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     private val activeUserId = MutableStateFlow(PREVIEW_USER_ID)
     val currentUserId: StateFlow<String> = activeUserId
     val cloudActivityError = MutableStateFlow<String?>(null)
+    val publishError = MutableStateFlow<String?>(null)
+    val isPublishing = MutableStateFlow(false)
+    val homeTab = MutableStateFlow(0)
     val cloudChatError = MutableStateFlow<String?>(null)
     val cloudCommunityError = MutableStateFlow<String?>(null)
 
@@ -80,6 +83,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     // Live state streams
     val userProfile: StateFlow<UserProfile?>
     val allPlans: StateFlow<List<Plan>>
+    val profilePlans: StateFlow<List<Plan>>
     val allGroups: StateFlow<List<Group>>
     val allAvailabilities: StateFlow<List<Availability>>
     val allNotifications: StateFlow<List<com.example.data.models.AppNotification>>
@@ -99,6 +103,8 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
                 plans.filter { it.cloudId.isNotBlank() && it.organizerId !in blocked }
             }
         }
+
+        profilePlans = sessionPlans.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
         // Combine session-scoped plans with search, category and neighborhood filters.
         allPlans = combine(
@@ -426,6 +432,10 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         val stableId = userId.ifBlank { PREVIEW_USER_ID }
         if (activeUserId.value != stableId) {
             currentScreen.value = Screen.Home
+            searchQuery.value = ""
+            selectedCategory.value = "All"
+            selectedNeighborhood.value = "All"
+            homeTab.value = 0
         }
         activeUserId.value = stableId
         blockJob?.cancel()
@@ -780,74 +790,87 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
 
     // Publish Activity Plan
     fun publishActivityPlan(onSuccess: () -> Unit) {
-        val title = formTitle.value
+        if (isPublishing.value) return
+        val title = formTitle.value.trim()
         val category = formCategory.value
-        val location = formLocation.value
-        val date = formDate.value
-        val time = formTime.value
-        val price = formPrice.value
+        val location = formLocation.value.trim()
+        val date = formDate.value.trim()
+        val time = formTime.value.trim()
+        val price = formPrice.value.trim()
         val participantsStr = formParticipantsNeeded.value
-        val description = formDescription.value
+        val description = formDescription.value.trim()
 
-        if (title.isBlank() || location.isBlank() || date.isBlank() || description.isBlank()) {
-            return // simple validation
-        }
-
-        val neededInt = participantsStr.toIntOrNull() ?: 4
+        publishError.value = validateActivityForm(title, location, date, time, price, participantsStr, description)
+        if (publishError.value != null) return
+        val neededInt = participantsStr.toInt()
+        isPublishing.value = true
 
         viewModelScope.launch {
-            val selfProfile = userProfile.value
-            val isVerifiedUser = selfProfile?.isVerified ?: false
-            val userId = activeUserId.value
-            val p = Plan(
-                organizerId = userId,
-                title = title,
-                category = category,
-                location = location,
-                date = date,
-                time = time.ifBlank { "Anytime" },
-                pricePerPerson = price.ifBlank { "Free" },
-                participantsNeeded = neededInt,
-                description = description,
-                organizerName = selfProfile?.name ?: "Connect Member",
-                organizerRating = selfProfile?.rating ?: 0.0,
-                joinedCount = 1,
-                isJoinedByMe = true,
-                isVerifiedOrganizer = if (userId == PREVIEW_USER_ID) isVerifiedUser else false
-            )
+            try {
+              val selfProfile = userProfile.value
+              val isVerifiedUser = selfProfile?.isVerified ?: false
+              val userId = activeUserId.value
+              val p = Plan(
+                  organizerId = userId,
+                  title = title,
+                  category = category,
+                  location = location,
+                  date = date,
+                  time = time.ifBlank { "Anytime" },
+                  pricePerPerson = price.ifBlank { "Free" },
+                  participantsNeeded = neededInt,
+                  description = description,
+                  organizerName = selfProfile?.name ?: "Connect Member",
+                  organizerRating = if (userId == PREVIEW_USER_ID) selfProfile?.rating ?: 0.0 else 0.0,
+                  joinedCount = 1,
+                  isJoinedByMe = true,
+                  isVerifiedOrganizer = if (userId == PREVIEW_USER_ID) isVerifiedUser else false
+              )
 
-            val planId = if (userId == PREVIEW_USER_ID) {
-                repository.insertPlan(p)
-            } else {
-                val cloudId = cloudActivityRepository.createActivity(p, userId)
-                    .onFailure { cloudActivityError.value = it.localizedMessage ?: "Could not publish activity." }
-                    .getOrElse { return@launch }
+              val planId = if (userId == PREVIEW_USER_ID) {
+                  repository.insertPlan(p)
+              } else {
+                  val cloudId = cloudActivityRepository.createActivity(p, userId)
+                      .onFailure { publishError.value = it.localizedMessage ?: "Could not publish activity." }
+                      .getOrElse { return@launch }
 
-                cloudActivityError.value = null
-                repository.insertPlan(p.copy(cloudId = cloudId))
+                  cloudActivityError.value = null
+                  repository.upsertCloudPlan(p.copy(cloudId = cloudId))
+              }
+
+              // Insert system notification log
+              repository.insertNotification(
+                  com.example.data.models.AppNotification(
+                      title = "🚀 Your activity is live!",
+                      description = "Successfully published '$title' for the location $location. Nearby locals will run across this recommendation.",
+                      systemCategory = "Recommendation",
+                      activityId = planId
+                  )
+              )
+
+              // Clear form
+              formTitle.value = ""
+              formCategory.value = "Play"
+              formLocation.value = ""
+              formDate.value = ""
+              formTime.value = ""
+              formPrice.value = "Free"
+              formParticipantsNeeded.value = "4"
+              formDescription.value = ""
+
+              if (userId == activeUserId.value) {
+                  searchQuery.value = ""
+                  selectedCategory.value = "All"
+                  selectedNeighborhood.value = "All"
+                  homeTab.value = 1
+                  onSuccess()
+              }
+            } catch (error: Exception) {
+              if (error is kotlinx.coroutines.CancellationException) throw error
+              publishError.value = error.localizedMessage ?: "Could not finish publishing. Check Community before trying again."
+            } finally {
+              isPublishing.value = false
             }
-
-            // Insert system notification log
-            repository.insertNotification(
-                com.example.data.models.AppNotification(
-                    title = "🚀 Your activity is live!",
-                    description = "Successfully published '$title' for the location $location. Nearby locals will run across this recommendation.",
-                    systemCategory = "Recommendation",
-                    activityId = planId
-                )
-            )
-
-            // Clear form
-            formTitle.value = ""
-            formCategory.value = "Play"
-            formLocation.value = ""
-            formDate.value = ""
-            formTime.value = ""
-            formPrice.value = "Free"
-            formParticipantsNeeded.value = "4"
-            formDescription.value = ""
-
-            onSuccess()
         }
     }
 

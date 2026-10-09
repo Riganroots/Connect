@@ -234,7 +234,7 @@ fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit,
 fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSignOut: () -> Unit,
     onDeleteAccount: (String, (String?) -> Unit) -> Unit = { _, result -> result("Deletion is unavailable.") }) {
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
-    val plans by viewModel.allPlans.collectAsStateWithLifecycle()
+    val plans by viewModel.profilePlans.collectAsStateWithLifecycle()
     val currentUserId by viewModel.currentUserId.collectAsStateWithLifecycle()
     val isPreviewMode = currentUserId == "preview-user"
 
