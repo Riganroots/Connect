@@ -58,7 +58,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     val cloudActivityError = MutableStateFlow<String?>(null)
     val publishError = MutableStateFlow<String?>(null)
     val isPublishing = MutableStateFlow(false)
-    val homeTab = MutableStateFlow(0)
+    val homeTab = MutableStateFlow(1)
     val cloudChatError = MutableStateFlow<String?>(null)
     val cloudCommunityError = MutableStateFlow<String?>(null)
 
@@ -435,7 +435,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             searchQuery.value = ""
             selectedCategory.value = "All"
             selectedNeighborhood.value = "All"
-            homeTab.value = 0
+            homeTab.value = 1
         }
         activeUserId.value = stableId
         blockJob?.cancel()
