@@ -3,6 +3,7 @@ package com.example.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.cloud.CloudUserProfileRepository
 import com.example.data.cloud.CloudActivityRepository
 import com.example.data.cloud.CloudChatRepository
 import com.example.data.cloud.CloudCommunityRepository
@@ -45,6 +46,10 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     private val cloudReportRepository = CloudReportRepository(application)
     private val cloudBlockRepository = CloudBlockRepository(application)
     private var blockJob: Job? = null
+    private val cloudProfileRepository = CloudUserProfileRepository(application)
+    private var profileJob: Job? = null
+    val profileError = MutableStateFlow<String?>(null)
+    val isSavingProfile = MutableStateFlow(false)
     val blockedUsers = MutableStateFlow<Map<String, String>>(emptyMap())
     val blockError = MutableStateFlow<String?>(null)
     private var cloudActivityJob: Job? = null
@@ -438,6 +443,20 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             homeTab.value = 1
         }
         activeUserId.value = stableId
+        profileJob?.cancel()
+        profileError.value = null
+        if (!isPreviewMode) {
+            profileJob = viewModelScope.launch {
+                cloudProfileRepository.observeProfile(stableId)
+                    .catch { profileError.value = it.localizedMessage ?: "Could not load profile." }
+                    .collect { cloud ->
+                        if (activeUserId.value == stableId) {
+                            val cached = repository.getProfileDirect(stableId)
+                            repository.updateProfile(cloud.copy(isTravellerMode = cached?.isTravellerMode ?: false))
+                        }
+                    }
+            }
+        }
         blockJob?.cancel()
         blockedUsers.value = emptyMap()
         blockError.value = null
@@ -501,6 +520,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         }
 
         viewModelScope.launch {
+            if (!isPreviewMode) return@launch // Real profiles come from the cloud listener.
             val existing = repository.getProfileDirect(stableId)
             if (existing == null) {
                 repository.updateProfile(
@@ -636,17 +656,40 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // Update profile settings
-    fun updateProfileInfo(name: String, bio: String, isTraveller: Boolean, interests: String) {
+    fun updateProfileInfo(name: String, bio: String, isTraveller: Boolean, interests: String, onSaved: () -> Unit = {}) {
+        if (isSavingProfile.value) return
+        val uid = activeUserId.value
+        val cleanName = name.trim()
+        val tags = interests.split(",").map { it.trim() }.filter { it.isNotBlank() }.distinct()
+        profileError.value = when {
+            cleanName.isBlank() -> "Please enter your name."
+            cleanName.length > 80 -> "Keep your name within 80 characters."
+            bio.length > 2000 -> "Keep your bio within 2,000 characters."
+            tags.size > 30 -> "Choose up to 30 interests."
+            else -> null
+        }
+        if (profileError.value != null) return
+        isSavingProfile.value = true
         viewModelScope.launch {
-            val p = userProfile.value ?: UserProfile(id = activeUserId.value, name = "Connect Member")
-            repository.updateProfile(
-                p.copy(
-                    name = name.ifBlank { "Connect Member" },
-                    bio = bio,
-                    isTravellerMode = isTraveller,
-                    interests = interests
-                )
-            )
+            try {
+                if (uid != PREVIEW_USER_ID) {
+                    val result = cloudProfileRepository.saveProfile(uid, cleanName, bio.trim(), tags)
+                    if (uid != activeUserId.value) return@launch
+                    if (result.isFailure) {
+                        profileError.value = result.exceptionOrNull()?.localizedMessage ?: "Could not save profile."
+                        return@launch
+                    }
+                }
+                if (uid != activeUserId.value) return@launch
+                val p = repository.getProfileDirect(uid) ?: UserProfile(id = uid)
+                repository.updateProfile(p.copy(name = cleanName, bio = bio.trim(), isTravellerMode = isTraveller,
+                    interests = tags.joinToString(", ")))
+                profileError.value = null
+                onSaved()
+            } catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                if (uid == activeUserId.value) profileError.value = error.localizedMessage ?: "Could not save profile."
+            } finally { isSavingProfile.value = false }
         }
     }
 
@@ -724,6 +767,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         cloudActivityJob?.cancel()
         groupMembershipJob?.cancel()
         availabilityJob?.cancel()
+        profileJob?.cancel()
         blockJob?.cancel()
         chatJobs.values.forEach { it.cancel() }
         chatJobs.clear()

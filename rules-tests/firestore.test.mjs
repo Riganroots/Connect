@@ -219,3 +219,24 @@ test('pending deletion freezes the account and prevents new writes to hosted con
   await assertFails(setDoc(doc(dbFor('guest'), 'users/guest/savedActivities/walk'), { activityId: 'walk', savedAt: serverTimestamp() }));
   await assertFails(setDoc(doc(dbFor('host'), 'activities/walk/messages/new'), message('host')));
 });
+
+
+test('profile edits survive a new session and preserve protected fields', async () => {
+  const db = dbFor('profile-owner');
+  await setDoc(doc(db, 'users/profile-owner'), profile('profile-owner'));
+  const before = (await getDoc(doc(db, 'users/profile-owner'))).data();
+  await assertSucceeds(updateDoc(doc(db, 'users/profile-owner'), {
+    displayName: 'Ayush', bio: 'Hikes around Kathmandu', interests: ['Hiking', 'Cafes'],
+    updatedAt: serverTimestamp(), lastLoginAt: serverTimestamp()
+  }));
+  const anotherSession = env.authenticatedContext('profile-owner', { session: 'another-device' }).firestore();
+  const after = (await getDoc(doc(anotherSession, 'users/profile-owner'))).data();
+  assert.equal(after.displayName, 'Ayush');
+  assert.equal(after.bio, 'Hikes around Kathmandu');
+  assert.deepEqual(after.interests, ['Hiking', 'Cafes']);
+  assert.equal(after.createdAt.toMillis(), before.createdAt.toMillis());
+  assert.equal(after.isVerified, false);
+  await assertFails(updateDoc(doc(dbFor('other-account'), 'users/profile-owner'), {
+    displayName: 'Spoofed', updatedAt: serverTimestamp(), lastLoginAt: serverTimestamp()
+  }));
+});
