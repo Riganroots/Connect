@@ -2,8 +2,10 @@
 
 Connect package: `com.connectapp.npl`
 
-Current beta: `0.2.0-beta01`  
-Version code: `2`
+Current beta: `0.2.0-beta03`  
+Version code: `4`
+
+The existing Play listing already has version code 2 on Internal testing and an empty draft release. Use the existing upload key that matches that listing; do not create a replacement key for this update. Debug and release beta03 both use `connect-f0d00`, with unavailable server Functions disabled. Existing beta01 users on the old Firebase project will need a beta account in the tested project; accounts and data are not migrated automatically.
 
 ## 1. Create the Play upload key once
 

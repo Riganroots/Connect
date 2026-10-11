@@ -1,6 +1,8 @@
 name: Play Internal Testing Bundle
 
 on:
+  push:
+    branches: ["codex/play-beta03"]
   workflow_dispatch:
 
 permissions:
