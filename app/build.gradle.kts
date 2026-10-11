@@ -19,9 +19,9 @@ android {
     applicationId = "com.connectapp.npl"
     minSdk = 24
     targetSdk = 36
-    versionCode = 3
-    versionName = "0.2.0-beta02"
-    buildConfigField("boolean", "SERVER_FUNCTIONS_ENABLED", "true")
+    versionCode = 4
+    versionName = "0.2.0-beta03"
+    buildConfigField("boolean", "SERVER_FUNCTIONS_ENABLED", "false")
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
