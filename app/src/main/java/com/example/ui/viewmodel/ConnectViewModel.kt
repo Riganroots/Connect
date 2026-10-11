@@ -164,7 +164,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-        allNotifications = repository.allNotifications
+        allNotifications = activeUserId.flatMapLatest { uid -> repository.notifications(uid) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
         discoverSpots = combine(
@@ -372,16 +372,18 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
         }
 
         // Seed default notification items to educate on trust & preferences
-        val notificationExist = repository.allNotifications.first().isNotEmpty()
+        val notificationExist = repository.notifications(PREVIEW_USER_ID).first().isNotEmpty()
         if (!notificationExist) {
             val initialNotifications = listOf(
                 com.example.data.models.AppNotification(
+                    ownerId = PREVIEW_USER_ID,
                     title = "🔒 Complete Your trust Check",
                     description = "Verify your account with a cell phone number/ID to showcase a green verified checkmark and build maximum trust in real-life meetups.",
                     systemCategory = "Verification",
                     timestamp = System.currentTimeMillis() - 3600000 // 1 hour ago
                 ),
                 com.example.data.models.AppNotification(
+                    ownerId = PREVIEW_USER_ID,
                     title = "🌲 Saturday Shivapuri Hike Near Kathmandu",
                     description = "Recommendation based on location preferences: Budhanilkantha/Shivapuri meetup has 4 empty seats. Tap 'Join Plan' now to participate!",
                     systemCategory = "Recommendation",
@@ -416,6 +418,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             cloudActivityError.value = null
             repository.insertNotification(
                 com.example.data.models.AppNotification(
+                    ownerId = userId,
                     title = if (joined) "📅 Joined: ${plan.title}" else "👋 Left Plan: ${plan.title}",
                     description = if (joined) {
                         "Keep ${plan.date} at ${plan.time} on your calendar. Host: ${plan.organizerName}. Meeting point: ${plan.location}."
@@ -885,6 +888,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
               // Insert system notification log
               repository.insertNotification(
                   com.example.data.models.AppNotification(
+                    ownerId = userId,
                       title = "🚀 Your activity is live!",
                       description = "Successfully published '$title' for the location $location. Nearby locals will run across this recommendation.",
                       systemCategory = "Recommendation",
@@ -920,20 +924,23 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
 
     // Notifications state controls
     fun markNotificationAsRead(id: Long) {
+        val uid = activeUserId.value
         viewModelScope.launch {
-            repository.markNotificationAsRead(id)
+            repository.markNotificationAsRead(id, uid)
         }
     }
 
     fun deleteNotification(id: Long) {
+        val uid = activeUserId.value
         viewModelScope.launch {
-            repository.deleteNotification(id)
+            repository.deleteNotification(id, uid)
         }
     }
 
     fun clearAllNotifications() {
+        val uid = activeUserId.value
         viewModelScope.launch {
-            repository.deleteAllNotifications()
+            repository.deleteAllNotifications(uid)
         }
     }
 
@@ -968,6 +975,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
             // Insert matching Success Notification for complete trust transparency
             repository.insertNotification(
                 com.example.data.models.AppNotification(
+                    ownerId = PREVIEW_USER_ID,
                     title = "🛡️ Trust Verified Successfully!",
                     description = "Identity check complete using $method. You have earned a custom green Shield Badge next to your profile to build community trust.",
                     systemCategory = "Verification"
@@ -995,6 +1003,7 @@ class ConnectViewModel(application: Application) : AndroidViewModel(application)
 
             repository.insertNotification(
                 com.example.data.models.AppNotification(
+                    ownerId = PREVIEW_USER_ID,
                     title = "⚠️ Verification Status Reset",
                     description = "Your phone verification status has been detached. Re-verify anytime from the Trust Center in your profile tab.",
                     systemCategory = "Verification"
