@@ -80,6 +80,7 @@ data class ChatMessage(
 
 @Entity(tableName = "notifications")
 data class AppNotification(
+    @ColumnInfo(defaultValue = "''") val ownerId: String = "",
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String,
     val description: String,

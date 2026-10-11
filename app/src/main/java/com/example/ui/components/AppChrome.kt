@@ -34,8 +34,11 @@ fun AppHeader(
     viewModel: ConnectViewModel,
     onConfigureProfile: () -> Unit
 ) {
-    val notifications by viewModel.allNotifications.collectAsStateWithLifecycle()
-    var showNotifications by remember { mutableStateOf(false) }
+    val notificationRows by viewModel.allNotifications.collectAsStateWithLifecycle()
+    val currentUid by viewModel.currentUserId.collectAsStateWithLifecycle()
+    // Also filter the StateFlow replay while the new account's Room query starts.
+    val notifications = notificationRows.filter { it.ownerId == currentUid }
+    var showNotifications by remember(currentUid) { mutableStateOf(false) }
 
     if (showNotifications) {
         AlertDialog(

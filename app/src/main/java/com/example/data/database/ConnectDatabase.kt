@@ -109,20 +109,20 @@ interface ConnectDao {
     suspend fun insertChatMessage(message: ChatMessage)
 
     // Notifications
-    @Query("SELECT * FROM notifications ORDER BY timestamp DESC")
-    fun getAllNotificationsFlow(): Flow<List<com.example.data.models.AppNotification>>
+    @Query("SELECT * FROM notifications WHERE ownerId = :ownerId ORDER BY timestamp DESC")
+    fun getNotificationsFlow(ownerId: String): Flow<List<com.example.data.models.AppNotification>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNotification(notification: com.example.data.models.AppNotification)
 
-    @Query("UPDATE notifications SET isRead = 1 WHERE id = :notificationId")
-    suspend fun markNotificationAsRead(notificationId: Long)
+    @Query("UPDATE notifications SET isRead = 1 WHERE id = :notificationId AND ownerId = :ownerId")
+    suspend fun markNotificationAsRead(notificationId: Long, ownerId: String)
 
-    @Query("DELETE FROM notifications WHERE id = :notificationId")
-    suspend fun deleteNotification(notificationId: Long)
+    @Query("DELETE FROM notifications WHERE id = :notificationId AND ownerId = :ownerId")
+    suspend fun deleteNotification(notificationId: Long, ownerId: String)
 
-    @Query("DELETE FROM notifications")
-    suspend fun deleteAllNotifications()
+    @Query("DELETE FROM notifications WHERE ownerId = :ownerId")
+    suspend fun deleteAllNotifications(ownerId: String)
 }
 
 @Database(
@@ -134,13 +134,21 @@ interface ConnectDao {
         ChatMessage::class,
         com.example.data.models.AppNotification::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class ConnectDatabase : RoomDatabase() {
     abstract fun connectDao(): ConnectDao
 
     companion object {
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Old rows cannot be assigned to an account safely. Preserve them with an empty owner,
+                // which is never queried by an authenticated or preview session.
+                database.execSQL("ALTER TABLE notifications ADD COLUMN ownerId TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("ALTER TABLE plans ADD COLUMN cloudId TEXT NOT NULL DEFAULT ''")
@@ -192,7 +200,7 @@ abstract class ConnectDatabase : RoomDatabase() {
                     ConnectDatabase::class.java,
                     "connect_database"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
                 INSTANCE = instance
                 instance
@@ -285,22 +293,22 @@ class ConnectRepository(private val dao: ConnectDao) {
     }
 
     // Notifications operations
-    val allNotifications: Flow<List<com.example.data.models.AppNotification>> = dao.getAllNotificationsFlow()
+    fun notifications(ownerId: String): Flow<List<com.example.data.models.AppNotification>> = dao.getNotificationsFlow(ownerId)
 
     suspend fun insertNotification(notification: com.example.data.models.AppNotification) {
         dao.insertNotification(notification)
     }
 
-    suspend fun markNotificationAsRead(id: Long) {
-        dao.markNotificationAsRead(id)
+    suspend fun markNotificationAsRead(id: Long, ownerId: String) {
+        dao.markNotificationAsRead(id, ownerId)
     }
 
-    suspend fun deleteNotification(id: Long) {
-        dao.deleteNotification(id)
+    suspend fun deleteNotification(id: Long, ownerId: String) {
+        dao.deleteNotification(id, ownerId)
     }
 
-    suspend fun deleteAllNotifications() {
-        dao.deleteAllNotifications()
+    suspend fun deleteAllNotifications(ownerId: String) {
+        dao.deleteAllNotifications(ownerId)
     }
 
     fun getChatsForPlan(planId: Long): Flow<List<ChatMessage>> {
