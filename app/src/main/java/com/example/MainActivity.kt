@@ -162,10 +162,11 @@ fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit,
     if (showProfileCreator) {
         ProfileSetupDialog(
             profile = profile ?: UserProfile(),
-            onDismiss = { showProfileCreator = false },
+            onDismiss = { if (!viewModel.isSavingProfile.value) showProfileCreator = false },
+            saving = viewModel.isSavingProfile.collectAsStateWithLifecycle().value,
+            error = viewModel.profileError.collectAsStateWithLifecycle().value,
             onSave = { name, bio, isTraveller, interests ->
-                viewModel.updateProfileInfo(name, bio, isTraveller, interests)
-                showProfileCreator = false
+                viewModel.updateProfileInfo(name, bio, isTraveller, interests) { showProfileCreator = false }
             }
         )
     }
@@ -1633,7 +1634,9 @@ fun ChatDetailScreen(
 fun ProfileSetupDialog(
     profile: UserProfile,
     onDismiss: () -> Unit,
-    onSave: (String, String, Boolean, String) -> Unit
+    onSave: (String, String, Boolean, String) -> Unit,
+    saving: Boolean = false,
+    error: String? = null
 ) {
     var nameInput by remember { mutableStateOf(profile.name) }
     var bioInput by remember { mutableStateOf(profile.bio) }
@@ -1744,7 +1747,11 @@ fun ProfileSetupDialog(
             }
         },
         confirmButton = {
+            Column {
+                error?.let { Text(it, color = ConnectError) }
+                if (saving) Text("Saving profile… Stay connected.", fontSize = 12.sp)
             Button(
+                enabled = !saving,
                 onClick = { 
                     val finalInterests = selectedInterests.joinToString(", ")
                     onSave(nameInput, bioInput, isTravellerOption, finalInterests) 
@@ -1752,11 +1759,12 @@ fun ProfileSetupDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = ConnectDarkGreen),
                 modifier = Modifier.testTag("apply_profile_button")
             ) {
-                Text("Apply Parameters")
+                Text(if (saving) "Saving…" else "Save profile")
+            }
             }
         },
         dismissButton = {
-            TextButton(onClick = { onDismiss() }) {
+            TextButton(enabled = !saving, onClick = { onDismiss() }) {
                 Text("Cancel", color = ConnectGrayMedium)
             }
         }
