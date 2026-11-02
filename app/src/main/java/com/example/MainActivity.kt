@@ -249,7 +249,9 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
     val myJoinedPlans = plans.filter { it.isJoinedByMe }
     val mySavedPlans = plans.filter { it.isSaved }
 
-    var selectedTab by remember { mutableStateOf(0) } // 0 = Joined, 1 = My Hosted, 2 = Saved
+    var selectedTab by remember(currentUserId) { mutableStateOf(0) } // 0 = Joined, 1 = My Hosted, 2 = Saved
+
+    var showAccountSettings by remember(currentUserId) { mutableStateOf(false) }
 
     // Interactive Verification Wizard States
     var showWizard by remember { mutableStateOf(false) }
@@ -393,7 +395,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "${profileRating} member rating",
-                                fontSize = 12.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = ConnectGrayDark
                             )
@@ -401,7 +403,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                     } else {
                         Text(
                             text = "New Connect member",
-                            fontSize = 11.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = ConnectGrayMedium,
                             modifier = Modifier.padding(top = 2.dp)
@@ -418,8 +420,8 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                             Text(
                                 text = "Complete your profile with your name, bio and interests before hosting.",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                fontSize = 10.sp,
-                                lineHeight = 14.sp,
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp,
                                 color = ConnectGrayMedium,
                                 textAlign = TextAlign.Center
                             )
@@ -431,9 +433,9 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                     Text(
                         text = profile?.bio?.takeIf { it.isNotBlank() } ?: "Add a short bio so people know what you like to do.",
                         textAlign = TextAlign.Center,
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         color = ConnectGrayMedium,
-                        lineHeight = 15.sp,
+                        lineHeight = 21.sp,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
 
@@ -446,7 +448,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = "MY INTERESTS",
-                            fontSize = 9.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = ConnectGrayMedium,
                             letterSpacing = 1.sp
@@ -467,7 +469,7 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                                 ) {
                                     Text(
                                         text = interest,
-                                        fontSize = 10.sp,
+                                        fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = ConnectDarkGreen
                                     )
@@ -482,28 +484,12 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                     OutlinedButton(
                         onClick = { onEditProfile() },
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = ConnectDarkGreen),
-                        modifier = Modifier.height(34.dp)
+                        modifier = Modifier.heightIn(min = 48.dp)
                     ) {
-                        Text("Edit profile", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Edit profile", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
 
-                    if (!isPreviewMode) BlockedUsersManager(viewModel)
-                    if (!isPreviewMode && BuildConfig.SERVER_FUNCTIONS_ENABLED) {
-                        DeleteAccountButton(onDeleteAccount)
-                    }
-                    if (!isPreviewMode && !BuildConfig.SERVER_FUNCTIONS_ENABLED) {
-                        Text(
-                            "Testing build: push notifications and account deletion are unavailable.",
-                            fontSize = 11.sp,
-                            color = ConnectGrayMedium
-                        )
-                    }
-                    TextButton(
-                        onClick = onSignOut,
-                        colors = ButtonDefaults.textButtonColors(contentColor = ConnectGrayMedium)
-                    ) {
-                        Text(if (isPreviewMode) "Exit preview" else "Sign out", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
+
                 }
             }
         }
@@ -1280,17 +1266,17 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("Joined (${myJoinedPlans.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+                    text = { Text("Joined (${myJoinedPlans.size})", fontWeight = FontWeight.SemiBold, fontSize = 13.sp) }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    text = { Text("Hosted (${myPublishedPlans.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+                    text = { Text("Hosted (${myPublishedPlans.size})", fontWeight = FontWeight.SemiBold, fontSize = 13.sp) }
                 )
                 Tab(
                     selected = selectedTab == 2,
                     onClick = { selectedTab = 2 },
-                    text = { Text("Saved (${mySavedPlans.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+                    text = { Text("Saved (${mySavedPlans.size})", fontWeight = FontWeight.SemiBold, fontSize = 13.sp) }
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -1310,16 +1296,28 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                         .padding(48.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = when (selectedTab) {
-                            0 -> "You haven't joined any activities yet. Go to Discover to find something nearby."
-                            1 -> "You haven't hosted an activity yet. Tap Create when you're ready."
-                            else -> "No saved activities yet. Tap the heart on an activity to keep it here."
-                        },
-                        fontSize = 12.sp,
-                        color = ConnectGrayMedium,
-                        textAlign = TextAlign.Center
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = when (selectedTab) {
+                                0 -> "You haven't joined any activities yet. Find something nearby and meet your group here."
+                                1 -> "You haven't hosted an activity yet. Tap Create when you're ready."
+                                else -> "No saved activities yet. Tap the heart on an activity to keep it here."
+                            },
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp,
+                            color = ConnectGrayMedium,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                viewModel.navigateTo(if (selectedTab == 1) Screen.CreatePlan else Screen.Home)
+                            },
+                            modifier = Modifier.heightIn(min = 48.dp)
+                        ) {
+                            Text(if (selectedTab == 1) "Create a plan" else "Find activities")
+                        }
+                    }
                 }
             }
         } else {
@@ -1330,6 +1328,39 @@ fun ProfileScreen(viewModel: ConnectViewModel, onEditProfile: () -> Unit, onSign
                     onSaveToggle = { viewModel.toggleSavePlan(plan.id) },
                     onChatClick = { viewModel.navigateTo(Screen.ChatDetail(plan.id)) }
                 )
+            }
+        }
+        item {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                TextButton(
+                    onClick = { showAccountSettings = !showAccountSettings },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                ) {
+                    Text("Account settings", modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
+                    Icon(if (showAccountSettings) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (showAccountSettings) "Collapse account settings" else "Expand account settings")
+                }
+                AnimatedVisibility(visible = showAccountSettings) {
+                    Column(Modifier.fillMaxWidth()) {
+                        if (!isPreviewMode) BlockedUsersManager(viewModel)
+                        if (!isPreviewMode && BuildConfig.SERVER_FUNCTIONS_ENABLED) {
+                            DeleteAccountButton(onDeleteAccount)
+                        }
+                        if (!isPreviewMode && !BuildConfig.SERVER_FUNCTIONS_ENABLED) {
+                            Text(
+                                "Testing build: push notifications and account deletion are unavailable.",
+                                fontSize = 14.sp,
+                                color = ConnectGrayMedium
+                            )
+                        }
+                        TextButton(
+                            onClick = onSignOut,
+                            colors = ButtonDefaults.textButtonColors(contentColor = ConnectGrayMedium)
+                        ) {
+                            Text(if (isPreviewMode) "Exit preview" else "Sign out", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
         }
     }
