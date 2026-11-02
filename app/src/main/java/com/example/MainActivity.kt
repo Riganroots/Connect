@@ -30,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -174,11 +175,13 @@ fun ConnectApp(viewModel: ConnectViewModel, onSignOut: () -> Unit,
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Main Top Bar
-            AppHeader(
-                profile = profile,
-                viewModel = viewModel,
-                onConfigureProfile = { showProfileCreator = true }
-            )
+            if (currentScreen !is Screen.ChatDetail) {
+                AppHeader(
+                    profile = profile,
+                    viewModel = viewModel,
+                    onConfigureProfile = { showProfileCreator = true }
+                )
+            }
 
             // Switch Screen Body
             Box(
@@ -1350,8 +1353,8 @@ fun ChatDetailScreen(
     val blockError by viewModel.blockError.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
-    var hostPlan by remember { mutableStateOf<Plan?>(null) }
-    var userMessage by remember { mutableStateOf("") }
+    var hostPlan by remember(planId) { mutableStateOf<Plan?>(null) }
+    var userMessage by rememberSaveable(planId) { mutableStateOf("") }
 
     // Fetch parent Plan to display host contact metadata
     LaunchedEffect(planId) {
@@ -1377,12 +1380,13 @@ fun ChatDetailScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(ConnectMintLight)
+            .imePadding()
     ) {
         // Chat Header with host name
         Surface(
-            color = ConnectCream,
+            color = ConnectWhite,
             modifier = Modifier.fillMaxWidth(),
-            tonalElevation = 2.dp
+            tonalElevation = 0.dp
         ) {
             Row(
                 modifier = Modifier
@@ -1419,14 +1423,16 @@ fun ChatDetailScreen(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Plan Host: ${hostPlan?.organizerName ?: "Host"}",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.ExtraBold,
+                        text = hostPlan?.title ?: "Activity chat",
+                        fontSize = 18.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.Bold,
                         color = ConnectGrayDark
                     )
                     Text(
-                        text = hostPlan?.title ?: "Activity group discussion",
-                        fontSize = 11.sp,
+                        text = "Group chat · Hosted by ${hostPlan?.organizerName ?: "Connect member"}",
+                        fontSize = 14.sp,
                         color = ConnectGrayMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -1464,15 +1470,15 @@ fun ChatDetailScreen(
                     Column {
                         Text(
                             text = "Chat temporarily unavailable",
-                            fontSize = 10.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = ConnectGrayDark
                         )
                         Text(
                             text = chatError ?: "Please try again.",
-                            fontSize = 9.sp,
+                            fontSize = 13.sp,
                             color = ConnectGrayMedium,
-                            lineHeight = 12.sp
+                            lineHeight = 18.sp
                         )
                     }
                 }
@@ -1514,7 +1520,7 @@ fun ChatDetailScreen(
                             )
                             Text(
                                 text = "Start the activity conversation.",
-                                fontSize = 10.sp,
+                                fontSize = 14.sp,
                                 color = ConnectGrayMedium
                             )
                         }
@@ -1536,7 +1542,7 @@ fun ChatDetailScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = chat.senderName,
-                            fontSize = 10.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = ConnectGrayMedium,
                             modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
@@ -1558,13 +1564,13 @@ fun ChatDetailScreen(
                             )
                             .background(bubbleColor)
                             .padding(horizontal = 12.dp, vertical = 8.dp)
-                            .widthIn(max = 260.dp)
+                            .widthIn(max = 300.dp)
                     ) {
                         Text(
                             text = chat.messageText,
-                            fontSize = 12.sp,
+                            fontSize = 16.sp,
                             color = textColor,
-                            lineHeight = 16.sp
+                            lineHeight = 23.sp
                         )
                     }
                 }
@@ -1591,7 +1597,8 @@ fun ChatDetailScreen(
                             userMessage = value
                         }
                     },
-                    placeholder = { Text("Ask about dates, equipment, or details...") },
+                    placeholder = { Text("Message the group", fontSize = 16.sp) },
+                    shape = RoundedCornerShape(24.dp),
                     modifier = Modifier.weight(1f),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.White,
@@ -1604,16 +1611,19 @@ fun ChatDetailScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                FloatingActionButton(
+                FilledIconButton(
+                    enabled = userMessage.isNotBlank(),
                     onClick = {
                         if (userMessage.isNotBlank()) {
                             viewModel.sendChatMessage(planId, userMessage)
                             userMessage = ""
                         }
                     },
-                    containerColor = ConnectDarkGreen,
-                    contentColor = Color.White,
-                    modifier = Modifier.size(46.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = ConnectDarkGreen,
+                        contentColor = ConnectWhite
+                    ),
+                    modifier = Modifier.size(48.dp),
                     shape = CircleShape
                 ) {
                     Icon(
