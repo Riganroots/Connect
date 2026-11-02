@@ -61,6 +61,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
     val cloudCommunityError by viewModel.cloudCommunityError.collectAsStateWithLifecycle()
 
     var showAvailabilityPost by remember { mutableStateOf(false) }
+    var showAreaFilters by remember { mutableStateOf(false) }
     val subTabSelected by viewModel.homeTab.collectAsStateWithLifecycle() // 0 = Discover Guide, 1 = Live Community Feed
     
     var selectedSpotDetail by remember { mutableStateOf<com.example.data.models.DiscoverSpot?>(null) }
@@ -290,9 +291,9 @@ fun HomeScreen(viewModel: ConnectViewModel) {
     ) {
         item {
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp)) {
-                Text("Make plans. Meet people.", fontSize = 26.sp, lineHeight = 32.sp,
+                Text("Good company starts here.", fontSize = 28.sp, lineHeight = 34.sp,
                     fontWeight = FontWeight.Bold, color = ConnectGrayDark)
-                Text("Small activities. Good company. Around Kathmandu.", fontSize = 14.sp,
+                Text("Find something to do. Meet people to do it with.", fontSize = 15.sp,
                     lineHeight = 20.sp, color = ConnectGrayMedium, modifier = Modifier.padding(top = 6.dp))
             }
         }
@@ -397,7 +398,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                     onClick = { viewModel.homeTab.value = 1 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Community", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("Activities", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                         }
                     },
                     selectedContentColor = ConnectDarkGreen,
@@ -408,7 +409,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                     onClick = { viewModel.homeTab.value = 0 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Explore", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("Places to go", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                         }
                     },
                     selectedContentColor = ConnectDarkGreen,
@@ -419,21 +420,31 @@ fun HomeScreen(viewModel: ConnectViewModel) {
             Spacer(modifier = Modifier.height(10.dp))
         }
 
-        // 1.8 Global Neighborhood row selector
         item {
-            Text(
-                text = "Area",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                color = ConnectGrayDark
-            )
-
-            NeighborhoodRow(
-                activeNeighborhood = activeNeighborhood,
-                onSelected = { viewModel.selectedNeighborhood.value = it }
-            )
-            Spacer(modifier = Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.LocationOn, contentDescription = null,
+                    tint = ConnectDarkGreen, modifier = Modifier.size(18.dp))
+                Text(if (activeNeighborhood == "All") "All areas in Kathmandu" else activeNeighborhood,
+                    fontSize = 14.sp, color = ConnectGrayMedium,
+                    modifier = Modifier.weight(1f).padding(start = 6.dp))
+                TextButton(onClick = { showAreaFilters = !showAreaFilters }) {
+                    Text(if (showAreaFilters) "Done" else "Change area")
+                    Icon(if (showAreaFilters) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null)
+                }
+            }
+            AnimatedVisibility(visible = showAreaFilters) {
+                NeighborhoodRow(
+                    activeNeighborhood = activeNeighborhood,
+                    onSelected = {
+                        viewModel.selectedNeighborhood.value = it
+                        showAreaFilters = false
+                    }
+                )
+            }
         }
 
         if (subTabSelected == 0) {
@@ -683,7 +694,7 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "No activities found yet.",
+                                text = if (searchQuery.isBlank() && activeCategory == "All" && activeNeighborhood == "All") "Be the first to make a plan" else "No matching activities",
                                 color = ConnectGrayDark,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -691,10 +702,20 @@ fun HomeScreen(viewModel: ConnectViewModel) {
                             Text(
                                 text = "Create the first activity or change your search and filters.",
                                 color = ConnectGrayMedium,
-                                fontSize = 11.sp,
+                                fontSize = 14.sp,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(horizontal = 24.dp)
                             )
+                            Spacer(Modifier.height(16.dp))
+                            Button(
+                                onClick = { viewModel.navigateTo(Screen.CreatePlan) },
+                                modifier = Modifier.heightIn(min = 48.dp),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Create a plan")
+                            }
                         }
                     }
                 }
@@ -1072,7 +1093,7 @@ fun KathmanduActivityMap(
     selectedNeighborhood: String,
     onSelected: (String) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(true) }
+    var expanded by remember { mutableStateOf(false) }
     
     Card(
         modifier = Modifier

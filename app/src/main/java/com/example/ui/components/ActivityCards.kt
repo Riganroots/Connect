@@ -63,7 +63,7 @@ fun GroupCard(gp: Group, onJoinToggle: () -> Unit) {
                     )
                     Text(
                         text = if (gp.isMember) "Joined community" else "Community",
-                        fontSize = 10.sp,
+                        fontSize = 13.sp,
                         color = ConnectGrayMedium
                     )
                 }
@@ -71,9 +71,9 @@ fun GroupCard(gp: Group, onJoinToggle: () -> Unit) {
 
             Text(
                 text = gp.description,
-                fontSize = 10.sp,
+                fontSize = 13.sp,
                 color = ConnectGrayMedium,
-                lineHeight = 14.sp,
+                lineHeight = 18.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -83,7 +83,7 @@ fun GroupCard(gp: Group, onJoinToggle: () -> Unit) {
                     Text(
                         text = gp.category,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontSize = 9.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = ConnectDarkGreen
                     )
@@ -94,20 +94,20 @@ fun GroupCard(gp: Group, onJoinToggle: () -> Unit) {
                         onClick = onJoinToggle,
                         shape = RoundedCornerShape(20.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp),
-                        modifier = Modifier.height(34.dp),
+                        modifier = Modifier.heightIn(min = 48.dp),
                         border = BorderStroke(1.dp, ConnectGrayLight)
                     ) {
-                        Text("Joined", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = ConnectGrayMedium)
+                        Text("Joined", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ConnectGrayMedium)
                     }
                 } else {
                     Button(
                         onClick = onJoinToggle,
                         shape = RoundedCornerShape(20.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp),
-                        modifier = Modifier.height(34.dp),
+                        modifier = Modifier.heightIn(min = 48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = ConnectDarkGreen)
                     ) {
-                        Text("Join", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("Join", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -126,7 +126,7 @@ fun PlanCard(
 
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 7.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = ConnectWhite),
         border = BorderStroke(1.dp, ConnectGrayLight),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -254,7 +254,7 @@ fun PlanCard(
                 Icon(Icons.Default.Person, contentDescription = null, tint = ConnectGrayMedium, modifier = Modifier.size(15.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("${plan.joinedCount} joined", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark)
-                Text("  •  ${plan.participantsNeeded} more wanted", fontSize = 13.sp, color = ConnectGrayMedium)
+                Text("  ·  ${plan.participantsNeeded} more wanted", fontSize = 13.sp, color = ConnectGrayMedium, modifier = Modifier.weight(1f))
             }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
