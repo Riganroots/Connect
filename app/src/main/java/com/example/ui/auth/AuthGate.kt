@@ -7,12 +7,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -82,20 +87,24 @@ private fun AuthScreen(
     onPreview: () -> Unit,
     onClearMessage: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var createMode by remember { mutableStateOf(false) }
+    var createMode by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(email, password, createMode) {
-        if (errorMessage != null || infoMessage != null) {
-            onClearMessage()
+    var showPassword by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val submit = {
+        if (!isLoading && isFirebaseConfigured) {
+            focusManager.clearFocus()
+            if (createMode) onCreateAccount(email, password) else onSignIn(email, password)
         }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ConnectMintLight),
+            .background(ConnectMintLight)
+            .imePadding(),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -128,7 +137,7 @@ private fun AuthScreen(
             )
             Text(
                 text = "Find people. Make plans. Go together.",
-                fontSize = 12.sp,
+                fontSize = 14.sp,
                 color = ConnectGrayMedium,
                 modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
             )
@@ -150,20 +159,23 @@ private fun AuthScreen(
                         AuthModeButton(
                             text = "Sign in",
                             selected = !createMode,
-                            onClick = { createMode = false },
+                            onClick = { createMode = false; onClearMessage() },
+                            enabled = !isLoading,
                             modifier = Modifier.weight(1f)
                         )
                         AuthModeButton(
                             text = "Create account",
                             selected = createMode,
-                            onClick = { createMode = true },
+                            onClick = { createMode = true; onClearMessage() },
+                            enabled = !isLoading,
                             modifier = Modifier.weight(1f)
                         )
                     }
 
                     OutlinedTextField(
                         value = email,
-                        onValueChange = { email = it },
+                        onValueChange = { email = it; onClearMessage() },
+                        enabled = !isLoading,
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Email") },
                         leadingIcon = {
@@ -174,19 +186,30 @@ private fun AuthScreen(
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
                         ),
+                        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                         shape = RoundedCornerShape(14.dp)
                     )
 
                     OutlinedTextField(
                         value = password,
-                        onValueChange = { password = it },
+                        onValueChange = { password = it; onClearMessage() },
+                        enabled = !isLoading,
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Password") },
                         leadingIcon = {
                             Icon(Icons.Default.Lock, contentDescription = null, tint = ConnectDarkGreen)
                         },
                         singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            TextButton(onClick = { showPassword = !showPassword }, enabled = !isLoading) {
+                                Text(if (showPassword) "Hide" else "Show")
+                            }
+                        },
+                        supportingText = {
+                            if (createMode) Text("Use at least 6 characters.")
+                        },
+                        keyboardActions = KeyboardActions(onDone = { submit() }),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done
@@ -200,7 +223,7 @@ private fun AuthScreen(
                             enabled = !isLoading && isFirebaseConfigured,
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Text("Forgot password?", color = ConnectDarkGreen, fontSize = 11.sp)
+                            Text("Forgot password?", color = ConnectDarkGreen, fontSize = 14.sp)
                         }
                     }
 
@@ -212,7 +235,7 @@ private fun AuthScreen(
                             Text(
                                 text = errorMessage,
                                 modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                fontSize = 10.sp,
+                                fontSize = 14.sp,
                                 color = ConnectError
                             )
                         }
@@ -226,7 +249,7 @@ private fun AuthScreen(
                             Text(
                                 text = infoMessage,
                                 modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                fontSize = 10.sp,
+                                fontSize = 14.sp,
                                 color = ConnectDarkGreen,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -234,10 +257,7 @@ private fun AuthScreen(
                     }
 
                     Button(
-                        onClick = {
-                            if (createMode) onCreateAccount(email, password)
-                            else onSignIn(email, password)
-                        },
+                        onClick = { submit() },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         enabled = !isLoading && isFirebaseConfigured,
                         shape = RoundedCornerShape(15.dp),
@@ -270,14 +290,14 @@ private fun AuthScreen(
                     Column(modifier = Modifier.padding(14.dp)) {
                         Text(
                             text = "Firebase setup required",
-                            fontSize = 12.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = ConnectGrayDark
                         )
                         Text(
                             text = "Real sign-in is disabled until this Android app is registered in Firebase and its configuration file is added.",
-                            fontSize = 10.sp,
-                            lineHeight = 14.sp,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
                             color = ConnectGrayMedium,
                             modifier = Modifier.padding(top = 4.dp)
                         )
@@ -297,7 +317,7 @@ private fun AuthScreen(
                     }
                     Text(
                         text = "Preview Mode is for development only and is never a real signed-in account.",
-                        fontSize = 9.sp,
+                        fontSize = 14.sp,
                         color = ConnectGrayMedium,
                         modifier = Modifier.padding(top = 6.dp)
                     )
@@ -312,25 +332,28 @@ private fun AuthModeButton(
     text: String,
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     if (selected) {
         Button(
             onClick = onClick,
-            modifier = modifier.height(42.dp),
+            modifier = modifier.heightIn(min = 48.dp),
+            enabled = enabled,
             shape = RoundedCornerShape(13.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ConnectDarkGreen)
         ) {
-            Text(text, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
     } else {
         OutlinedButton(
             onClick = onClick,
-            modifier = modifier.height(42.dp),
+            modifier = modifier.heightIn(min = 48.dp),
+            enabled = enabled,
             shape = RoundedCornerShape(13.dp),
             border = BorderStroke(1.dp, ConnectGrayLight)
         ) {
-            Text(text, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark)
+            Text(text, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark)
         }
     }
 }
