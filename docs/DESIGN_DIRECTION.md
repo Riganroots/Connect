@@ -6,7 +6,7 @@ The first screen should help someone find a real plan and understand how to join
 
 - A compact wordmark/location header and persistent Discover, Create and My plans navigation.
 - A 12/14/16/20/24 type scale, 20dp screen gutters and restrained 12–18dp corners.
-- Green identifies actionable/selected items. White and neutral surfaces carry content.
+- Green identifies actionable/selected items. White and neutral surfaces carry content. The default app theme is consistently light, including on system-dark phones; an automatic mixed light/dark palette must not make form fields unreadable. A fully tokenized dark theme is a separate follow-up.
 - Photography belongs in category discovery and the detail cover. Repeated stock images must not dominate a list of real plans.
 - Scan title, date and meeting point in the feed. Decide to join on the detail page. Keep cost, host and group context visible.
 - No invented activity ratings, participant portraits, urgency labels or map distances. Category imagery stays labelled and attributed.
