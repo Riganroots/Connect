@@ -45,7 +45,7 @@ jobs:
           ./gradlew --version
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace
+        run: ./gradlew testDebugUnitTest -Proborazzi.test.record=true --stacktrace
 
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --stacktrace
@@ -88,4 +88,4 @@ jobs:
         with:
           name: connect-native-design-previews
           path: app/build/outputs/design/*.png
-          if-no-files-found: ignore
+          if-no-files-found: error
