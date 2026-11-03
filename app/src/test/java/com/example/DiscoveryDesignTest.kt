@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.example.data.models.Plan
@@ -53,6 +55,19 @@ class DiscoveryDesignTest {
         compose.onNodeWithText("Make a plan").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, creates) }
         compose.onRoot().captureRoboImage(filePath = "build/outputs/design/discovery-empty-360.png")
+    }
+
+    @Test fun largeTextFeedRendersOnNarrowPhone() {
+        compose.setContent {
+            MyApplicationTheme(darkTheme = false) {
+                val density = LocalDensity.current
+                CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 1.3f)) {
+                    Surface(Modifier.fillMaxSize()) { Feed(listOf(walk)) }
+                }
+            }
+        }
+        compose.onNodeWithText("Join this plan").performScrollTo().assertIsDisplayed()
+        compose.onRoot().captureRoboImage(filePath = "build/outputs/design/discovery-large-text-360.png")
     }
 
     @Test fun joiningAndLeavingHaveDistinctActions() {

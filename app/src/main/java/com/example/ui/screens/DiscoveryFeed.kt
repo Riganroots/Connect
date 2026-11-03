@@ -80,6 +80,8 @@ fun DiscoveryFeed(
                 singleLine = true, shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedContainerColor = ConnectWhite, focusedContainerColor = ConnectWhite,
+                    focusedTextColor = ConnectGrayDark, unfocusedTextColor = ConnectGrayDark,
+                    focusedPlaceholderColor = ConnectGrayMedium, unfocusedPlaceholderColor = ConnectGrayMedium,
                     unfocusedBorderColor = ConnectGrayLight, focusedBorderColor = ConnectDarkGreen
                 )
             )
@@ -105,7 +107,7 @@ fun DiscoveryFeed(
                     items(listOf("All", "Play", "Explore", "Meet", "Learn", "Experience")) { option ->
                         FilterChip(
                             selected = option == category, onClick = { onCategory(option) },
-                            label = { Text(if (option == "All") "For you" else option, fontSize = 14.sp) },
+                            label = { Text(if (option == "All") "All plans" else option, fontSize = 14.sp) },
                             modifier = Modifier.heightIn(min = 48.dp).testTag("feed_category_$option"),
                             shape = RoundedCornerShape(24.dp),
                             colors = FilterChipDefaults.filterChipColors(

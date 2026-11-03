@@ -149,7 +149,8 @@ fun PlanCard(
             Icon(categoryIcon, contentDescription = null, tint = accent, modifier = Modifier.size(18.dp))
             Text(plan.category, color = accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f).padding(start = 8.dp))
-            if (plan.pricePerPerson.isNotBlank()) Text(plan.pricePerPerson, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = accent)
+            if (plan.pricePerPerson.isNotBlank()) Text(plan.pricePerPerson, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = accent,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 112.dp))
             IconButton(onClick = onSaveToggle, modifier = Modifier.size(48.dp)) {
                 Icon(if (plan.isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = if (plan.isSaved) "Unsave plan" else "Save plan",
@@ -182,15 +183,13 @@ fun PlanCard(
                 }
             }
             if (plan.isJoinedByMe) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onJoinToggle, modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text("Leave activity", fontSize = 13.sp, color = ConnectGrayMedium)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Button(onClick = onChatClick, shape = RoundedCornerShape(14.dp), modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text("Open group chat")
-                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null)
-                    }
+                Button(onClick = onChatClick, shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text("Open group chat")
+                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null)
+                }
+                TextButton(onClick = onJoinToggle, modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = 48.dp)) {
+                    Text("Leave activity", fontSize = 13.sp, color = ConnectGrayMedium)
                 }
             } else {
                 Button(onClick = onJoinToggle, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
