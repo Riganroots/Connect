@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import com.example.data.models.Plan
 import com.example.ui.components.PlanCard
 import com.example.ui.screens.DiscoveryFeed
+import com.example.ui.screens.PlanDetailScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Assert.assertEquals
@@ -42,11 +43,12 @@ class DiscoveryDesignTest {
                 }
             }
         }
-        compose.onNodeWithText(walk.title).assertIsDisplayed()
         compose.onRoot().captureRoboImage(filePath = "build/outputs/design/discovery-360.png")
-        compose.onNodeWithTag("feed_category_Play").performClick()
-        compose.runOnIdle { assertEquals("Play", selected) }
-        compose.onNodeWithTag("feed_category_Play").assertIsSelected()
+        compose.onNodeWithText("Hikes & outdoors").performClick()
+        compose.runOnIdle { assertEquals("Explore", selected) }
+        compose.onNodeWithTag("feed_category_Explore").assertIsSelected()
+        compose.onNodeWithText(walk.title).performScrollTo().assertIsDisplayed()
+        compose.onRoot().captureRoboImage(filePath = "build/outputs/design/discovery-activity-360.png")
     }
 
     @Test fun emptyFeedOffersWorkingCreateAction() {
@@ -84,6 +86,31 @@ class DiscoveryDesignTest {
         compose.onNodeWithText("Open group chat").performClick()
         compose.onNodeWithText("Leave activity").performClick()
         compose.runOnIdle { assertEquals(2, joins); assertEquals(1, chats) }
+    }
+
+    @Test fun detailShowsHostMeetingPointAndWorkingActions() {
+        var joins = 0
+        var maps = 0
+        compose.setContent {
+            MyApplicationTheme(darkTheme = false) {
+                PlanDetailScreen(walk, {}, {}, { joins++ }, {}, { maps++ })
+            }
+        }
+        compose.onNodeWithText("Your host").assertExists()
+        compose.onRoot().captureRoboImage(filePath = "build/outputs/design/activity-detail-360.png")
+        compose.onNodeWithText("Join plan").performClick()
+        compose.onNodeWithText("Open in Maps").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(1, joins); assertEquals(1, maps) }
+        compose.onRoot().captureRoboImage(filePath = "build/outputs/design/activity-meeting-point-360.png")
+    }
+
+    @Test fun tappingActivityOpensDetailPage() {
+        compose.setContent { MyApplicationTheme(darkTheme = false) { Feed(listOf(walk)) } }
+        compose.onNodeWithText(walk.title).performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Back to discovery").assertIsDisplayed()
+        compose.onNodeWithText("Join plan").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back to discovery").performClick()
+        compose.onNodeWithText("Join plan").assertDoesNotExist()
     }
 
     @Composable

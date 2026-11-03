@@ -1,5 +1,11 @@
 package com.example.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,6 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.models.*
+import com.example.ui.components.ActivityPhotography
+import com.example.ui.components.categoryTitle
 import com.example.ui.components.GroupCard
 import com.example.ui.components.PlanCard
 import com.example.ui.theme.*
@@ -34,6 +42,29 @@ fun DiscoveryFeed(
     onGroup: (Group) -> Unit, onAvailability: () -> Unit, onSurprise: () -> Unit
 ) {
     var showAreas by remember { mutableStateOf(false) }
+    var selectedPlanId by remember { mutableStateOf<Long?>(null) }
+    val context = LocalContext.current
+    val selectedPlan = plans.firstOrNull { it.id == selectedPlanId }
+    selectedPlan?.let { plan ->
+        Dialog(onDismissRequest = { selectedPlanId = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            PlanDetailScreen(plan,
+                onBack = { selectedPlanId = null }, onSave = { onSave(plan) }, onJoin = { onJoin(plan) },
+                onChat = { selectedPlanId = null; onChat(plan) },
+                onMaps = {
+                    val query = Uri.encode(plan.location)
+                    try {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$query")))
+                    } catch (_: ActivityNotFoundException) {
+                        try {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=$query")))
+                        } catch (_: ActivityNotFoundException) {
+                            android.widget.Toast.makeText(context, "No maps app or browser is available.", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            )
+        }
+    }
     if (showAreas) {
         AlertDialog(
             onDismissRequest = { showAreas = false },
@@ -60,9 +91,9 @@ fun DiscoveryFeed(
     ) {
         item {
             Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 12.dp)) {
-                Text("Go out. Find your people.", fontSize = 30.sp, lineHeight = 35.sp,
+                Text("Find your next good day.", fontSize = 27.sp, lineHeight = 33.sp,
                     letterSpacing = (-1).sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark)
-                Text("A small plan can make a great day.", fontSize = 15.sp,
+                Text("Things to do. People to do them with.", fontSize = 15.sp,
                     color = ConnectGrayMedium, modifier = Modifier.padding(top = 8.dp))
             }
         }
@@ -101,7 +132,7 @@ fun DiscoveryFeed(
                 }
             }
         }
-        if (!showPlaces) {
+        if (!showPlaces && (category != "All" || query.isNotBlank())) {
             item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(listOf("All", "Play", "Explore", "Meet", "Learn", "Experience")) { option ->
@@ -114,6 +145,20 @@ fun DiscoveryFeed(
                                 selectedContainerColor = ConnectDarkGreen, selectedLabelColor = ConnectWhite,
                                 containerColor = ConnectWhite, labelColor = ConnectGrayMedium)
                         )
+                    }
+                }
+            }
+        }
+        if (!showPlaces && query.isBlank() && category == "All") {
+            item {
+                Text("Find your kind of plan", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark,
+                    modifier = Modifier.padding(start = 20.dp, top = 6.dp, bottom = 14.dp))
+                LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(listOf("Explore", "Meet", "Play", "Learn")) { option ->
+                        Card(onClick = { onCategory(option) }, modifier = Modifier.width(188.dp).height(164.dp),
+                            shape = RoundedCornerShape(18.dp)) {
+                            ActivityPhotography(option, Modifier.fillMaxSize(), categoryTitle(option))
+                        }
                     }
                 }
             }
@@ -172,7 +217,7 @@ fun DiscoveryFeed(
                 ) }
             }
             items(plans, key = { "plan_${it.id}" }) { plan ->
-                PlanCard(plan, { onJoin(plan) }, { onSave(plan) }, { onChat(plan) })
+                PlanCard(plan, { onJoin(plan) }, { onSave(plan) }, { onChat(plan) }, onDetails = { selectedPlanId = plan.id })
             }
             item {
                 Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 20.dp), verticalAlignment = Alignment.CenterVertically) {

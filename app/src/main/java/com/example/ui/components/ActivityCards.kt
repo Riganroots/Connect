@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -120,7 +121,8 @@ fun PlanCard(
     plan: Plan,
     onJoinToggle: () -> Unit,
     onSaveToggle: () -> Unit,
-    onChatClick: () -> Unit
+    onChatClick: () -> Unit,
+    onDetails: (() -> Unit)? = null
 ) {
     val chatRequiresJoin = plan.cloudId.isNotBlank() && !plan.isJoinedByMe
     val accent = when (plan.category) {
@@ -138,11 +140,13 @@ fun PlanCard(
         else -> Icons.Default.DateRange
     }
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)
+            .clickable(enabled = onDetails != null) { onDetails?.invoke() },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = ConnectWhite),
         border = BorderStroke(1.dp, ConnectGrayLight)
     ) {
+        ActivityPhotography(plan.category, Modifier.fillMaxWidth().height(170.dp), "${plan.category} inspiration")
         // Category colour is decoration, never a substitute for a real activity photo.
         Row(Modifier.fillMaxWidth().background(accent.copy(alpha = 0.08f)).padding(start = 18.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically) {
