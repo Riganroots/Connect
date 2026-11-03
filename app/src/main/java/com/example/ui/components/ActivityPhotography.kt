@@ -27,10 +27,10 @@ internal fun categoryPhoto(category: String): Int = when (category) {
 }
 
 internal fun categoryTitle(category: String): String = when (category) {
-    "Play" -> "Games & sports"
-    "Explore" -> "Hikes & outdoors"
-    "Meet" -> "Coffee & company"
-    "Learn" -> "Learn together"
+    "Play" -> "Sports"
+    "Explore" -> "Outdoors"
+    "Meet" -> "Coffee"
+    "Learn" -> "Learning"
     else -> "Local experiences"
 }
 
@@ -45,7 +45,7 @@ fun ActivityPhotography(category: String, modifier: Modifier = Modifier, caption
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
                 listOf(Color.Transparent, Color.Black.copy(alpha = 0.65f)), startY = 80f)))
             Text(caption, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                modifier = Modifier.align(Alignment.BottomStart).padding(14.dp))
+                modifier = Modifier.align(Alignment.BottomStart).padding(10.dp))
         }
     }
 }

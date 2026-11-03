@@ -28,6 +28,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ui.components.ActivityPhotography
 import com.example.BuildConfig
 import com.example.auth.AuthViewModel
 import com.example.ui.theme.*
@@ -76,7 +77,7 @@ fun AuthGate(
 }
 
 @Composable
-private fun AuthScreen(
+internal fun AuthScreen(
     isFirebaseConfigured: Boolean,
     isLoading: Boolean,
     errorMessage: String?,
@@ -114,42 +115,25 @@ private fun AuthScreen(
                 .padding(horizontal = 22.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                modifier = Modifier
-                    .size(74.dp)
-                    .background(ConnectDarkGreen, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "C",
-                    color = Color.White,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
+            Text("connect", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark,
+                letterSpacing = (-0.8).sp, modifier = Modifier.align(Alignment.Start))
+            Spacer(Modifier.height(20.dp))
+            Surface(shape = RoundedCornerShape(16.dp)) {
+                ActivityPhotography("Meet", Modifier.fillMaxWidth().height(144.dp))
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Connect",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = ConnectDarkGreen
-            )
-            Text(
-                text = "Find people. Make plans. Go together.",
-                fontSize = 14.sp,
-                color = ConnectGrayMedium,
-                modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
-            )
+            Text("Good plans. Better company.", fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold,
+                color = ConnectGrayDark, modifier = Modifier.align(Alignment.Start).padding(top = 20.dp))
+            Text("Meet people through the things you like to do.", fontSize = 14.sp, lineHeight = 20.sp,
+                color = ConnectGrayMedium, modifier = Modifier.align(Alignment.Start).padding(top = 6.dp, bottom = 16.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = ConnectWhite),
-                border = BorderStroke(1.dp, ConnectGrayLight)
+                shape = RoundedCornerShape(0.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                border = BorderStroke(0.dp, Color.Transparent)
             ) {
                 Column(
-                    modifier = Modifier.padding(18.dp),
+                    modifier = Modifier.padding(vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(13.dp)
                 ) {
                     Row(
@@ -343,7 +327,7 @@ private fun AuthModeButton(
             shape = RoundedCornerShape(13.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ConnectDarkGreen)
         ) {
-            Text(text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     } else {
         OutlinedButton(
@@ -353,7 +337,7 @@ private fun AuthModeButton(
             shape = RoundedCornerShape(13.dp),
             border = BorderStroke(1.dp, ConnectGrayLight)
         ) {
-            Text(text, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark)
+            Text(text, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = ConnectGrayDark)
         }
     }
 }

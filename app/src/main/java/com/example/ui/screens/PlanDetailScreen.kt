@@ -1,5 +1,12 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import android.content.ActivityNotFoundException
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -26,7 +33,7 @@ fun PlanDetailScreen(plan: Plan, onBack: () -> Unit, onSave: () -> Unit,
     Column(Modifier.fillMaxSize().background(ConnectWhite).safeDrawingPadding()) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                Box(Modifier.fillMaxWidth().height(260.dp)) {
+                Box(Modifier.fillMaxWidth().height(190.dp)) {
                     ActivityPhotography(plan.category, Modifier.fillMaxSize(), "${plan.category} inspiration · Category photo")
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Surface(shape = CircleShape, color = ConnectWhite) {
@@ -42,14 +49,14 @@ fun PlanDetailScreen(plan: Plan, onBack: () -> Unit, onSave: () -> Unit,
                         }
                     }
                 }
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(plan.category.uppercase(), color = ConnectDarkGreen, fontSize = 12.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Bold)
-                        Text(plan.title, fontSize = 28.sp, lineHeight = 33.sp, letterSpacing = (-0.5).sp,
+                        Text(plan.title, fontSize = 24.sp, lineHeight = 30.sp, letterSpacing = (-0.5).sp,
                             fontWeight = FontWeight.Bold, color = ConnectGrayDark)
                         Text("${plan.joinedCount} joined · ${plan.participantsNeeded} more wanted", color = ConnectGrayMedium, fontSize = 14.sp)
                     }
-                    Surface(shape = RoundedCornerShape(18.dp), color = ConnectCream) {
+                    Surface(shape = RoundedCornerShape(12.dp), color = ConnectCream) {
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(44.dp).background(ConnectMint, CircleShape), contentAlignment = Alignment.Center) {
                                 Text(plan.organizerName.take(1).uppercase(), color = ConnectDarkGreen, fontWeight = FontWeight.Bold, fontSize = 20.sp)
@@ -61,7 +68,7 @@ fun PlanDetailScreen(plan: Plan, onBack: () -> Unit, onSave: () -> Unit,
                             if (plan.isVerifiedOrganizer) Icon(Icons.Default.CheckCircle, contentDescription = "Verified host", tint = ConnectDarkGreen)
                         }
                     }
-                    DetailSection("The plan") { Text(plan.description, color = ConnectGrayMedium, fontSize = 16.sp, lineHeight = 24.sp) }
+                    DetailSection("The plan") { Text(plan.description, color = ConnectGrayMedium, fontSize = 15.sp, lineHeight = 23.sp) }
                     HorizontalDivider(color = ConnectGrayLight)
                     DetailSection("When we're meeting") {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -90,10 +97,10 @@ fun PlanDetailScreen(plan: Plan, onBack: () -> Unit, onSave: () -> Unit,
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(end = 12.dp)) {
                     Text("Cost per person", color = ConnectGrayMedium, fontSize = 12.sp)
-                    Text(plan.pricePerPerson.ifBlank { "Ask host" }, color = ConnectGrayDark, fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(plan.pricePerPerson.ifBlank { "Ask host" }, color = ConnectGrayDark, fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-                Button(onClick = if (plan.isJoinedByMe) onChat else onJoin, shape = RoundedCornerShape(16.dp),
+                Button(onClick = if (plan.isJoinedByMe) onChat else onJoin, shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = ConnectDarkGreen),
                     modifier = Modifier.heightIn(min = 52.dp)) {
                     Text(if (plan.isJoinedByMe) "Group chat" else "Join plan", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -106,7 +113,26 @@ fun PlanDetailScreen(plan: Plan, onBack: () -> Unit, onSave: () -> Unit,
 @Composable
 private fun DetailSection(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(title, color = ConnectGrayDark, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = ConnectGrayDark, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         content()
+    }
+}
+
+@Composable
+fun PlanDetailDialog(plan: Plan, onDismiss: () -> Unit, onSave: () -> Unit, onJoin: () -> Unit, onChat: () -> Unit) {
+    val context = LocalContext.current
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        PlanDetailScreen(plan, onDismiss, onSave, onJoin, onChat, onMaps = {
+            val query = Uri.encode(plan.location)
+            try {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$query")))
+            } catch (_: ActivityNotFoundException) {
+                try {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=$query")))
+                } catch (_: ActivityNotFoundException) {
+                    android.widget.Toast.makeText(context, "No maps app or browser is available.", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        })
     }
 }

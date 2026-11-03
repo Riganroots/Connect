@@ -43,27 +43,10 @@ fun DiscoveryFeed(
 ) {
     var showAreas by remember { mutableStateOf(false) }
     var selectedPlanId by remember { mutableStateOf<Long?>(null) }
-    val context = LocalContext.current
-    val selectedPlan = plans.firstOrNull { it.id == selectedPlanId }
-    selectedPlan?.let { plan ->
-        Dialog(onDismissRequest = { selectedPlanId = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            PlanDetailScreen(plan,
-                onBack = { selectedPlanId = null }, onSave = { onSave(plan) }, onJoin = { onJoin(plan) },
-                onChat = { selectedPlanId = null; onChat(plan) },
-                onMaps = {
-                    val query = Uri.encode(plan.location)
-                    try {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$query")))
-                    } catch (_: ActivityNotFoundException) {
-                        try {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=$query")))
-                        } catch (_: ActivityNotFoundException) {
-                            android.widget.Toast.makeText(context, "No maps app or browser is available.", android.widget.Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }
-            )
-        }
+    plans.firstOrNull { it.id == selectedPlanId }?.let { plan ->
+        PlanDetailDialog(plan, onDismiss = { selectedPlanId = null },
+            onSave = { onSave(plan) }, onJoin = { onJoin(plan) },
+            onChat = { selectedPlanId = null; onChat(plan) })
     }
     if (showAreas) {
         AlertDialog(
@@ -90,25 +73,17 @@ fun DiscoveryFeed(
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         item {
-            Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 12.dp)) {
-                Text("Find your next good day.", fontSize = 27.sp, lineHeight = 33.sp,
-                    letterSpacing = (-1).sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark)
-                Text("Things to do. People to do them with.", fontSize = 15.sp,
-                    color = ConnectGrayMedium, modifier = Modifier.padding(top = 8.dp))
-            }
-        }
-        item {
             OutlinedTextField(
                 value = query, onValueChange = onQuery,
-                placeholder = { Text(if (showPlaces) "Find a place to go" else "Try futsal, coffee or a hike", fontSize = 15.sp) },
+                placeholder = { Text(if (showPlaces) "Search places" else "Search activities", fontSize = 15.sp) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (query.isNotEmpty()) IconButton(onClick = { onQuery("") }) {
                         Icon(Icons.Default.Close, contentDescription = "Clear search")
                     }
                 },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).testTag("discovery_search"),
-                singleLine = true, shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp).testTag("discovery_search"),
+                singleLine = true, shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedContainerColor = ConnectWhite, focusedContainerColor = ConnectWhite,
                     focusedTextColor = ConnectGrayDark, unfocusedTextColor = ConnectGrayDark,
@@ -123,7 +98,7 @@ fun DiscoveryFeed(
                 FeedTab("Activities", !showPlaces, { onTab(false) }, Modifier.weight(1f))
                 FeedTab("Places", showPlaces, { onTab(true) }, Modifier.weight(1f))
                 Spacer(Modifier.width(12.dp))
-                OutlinedButton(onClick = { showAreas = true }, shape = RoundedCornerShape(14.dp),
+                OutlinedButton(onClick = { showAreas = true }, shape = RoundedCornerShape(10.dp),
                     contentPadding = PaddingValues(horizontal = 10.dp),
                     modifier = Modifier.heightIn(min = 48.dp).testTag("area_filter"),
                     border = BorderStroke(1.dp, ConnectGrayLight)) {
@@ -151,12 +126,10 @@ fun DiscoveryFeed(
         }
         if (!showPlaces && query.isBlank() && category == "All") {
             item {
-                Text("Find your kind of plan", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark,
-                    modifier = Modifier.padding(start = 20.dp, top = 6.dp, bottom = 14.dp))
                 LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(listOf("Explore", "Meet", "Play", "Learn")) { option ->
-                        Card(onClick = { onCategory(option) }, modifier = Modifier.width(188.dp).height(164.dp),
-                            shape = RoundedCornerShape(18.dp)) {
+                        Card(onClick = { onCategory(option) }, modifier = Modifier.width(116.dp).height(92.dp),
+                            shape = RoundedCornerShape(12.dp)) {
                             ActivityPhotography(option, Modifier.fillMaxSize(), categoryTitle(option))
                         }
                     }
@@ -166,7 +139,7 @@ fun DiscoveryFeed(
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(if (showPlaces) "Somewhere worth going" else "Find your next plan", fontSize = 20.sp,
+                    Text(if (showPlaces) "Places to explore" else "Plans around you", fontSize = 20.sp,
                         fontWeight = FontWeight.Bold, color = ConnectGrayDark)
                     Text(if (area == "All") "Around Kathmandu" else "In $area", fontSize = 13.sp, color = ConnectGrayMedium)
                 }
@@ -212,8 +185,8 @@ fun DiscoveryFeed(
         } else {
             if (plans.isEmpty() && activityError == null) {
                 item { FeedEmpty(
-                    if (query.isBlank() && category == "All" && area == "All") "Your people are out there" else "No matching plans yet",
-                    "Start a coffee meetup, a game or a weekend walk. Give someone a reason to join you.", "Make a plan", onCreate
+                    if (query.isBlank() && category == "All" && area == "All") "Start something small" else "No matching plans yet",
+                    "Invite someone for a coffee, a game or a walk. Your first plan starts here.", "Make a plan", onCreate
                 ) }
             }
             items(plans, key = { "plan_${it.id}" }) { plan ->
@@ -248,10 +221,12 @@ fun DiscoveryFeed(
 
 @Composable
 private fun FeedTab(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
-    TextButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp), shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.textButtonColors(containerColor = if (selected) ConnectMint else ConnectWhite,
-            contentColor = if (selected) ConnectDarkGreen else ConnectGrayMedium)) {
-        Text(text, fontSize = 15.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+    Column(modifier) {
+        TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.textButtonColors(contentColor = if (selected) ConnectGrayDark else ConnectGrayMedium)) {
+            Text(text, fontSize = 14.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+        }
+        Box(Modifier.fillMaxWidth().height(2.dp).background(if (selected) ConnectDarkGreen else ConnectGrayLight))
     }
 }
 

@@ -1,6 +1,7 @@
 package com.example
 
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -10,6 +11,13 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.example.data.models.Plan
 import com.example.ui.components.PlanCard
+import com.example.ui.components.ConnectTopBar
+import com.example.ui.components.ConnectBottomNavigation
+import com.example.ui.viewmodel.Screen
+import com.example.ui.theme.ConnectWhite
+import com.example.ui.screens.MemberPlansScreen
+import com.example.ui.auth.AuthScreen
+import com.example.data.models.UserProfile
 import com.example.ui.screens.DiscoveryFeed
 import com.example.ui.screens.PlanDetailScreen
 import com.example.ui.theme.MyApplicationTheme
@@ -44,7 +52,7 @@ class DiscoveryDesignTest {
             }
         }
         compose.onRoot().captureRoboImage(filePath = "build/outputs/design/discovery-360.png")
-        compose.onNodeWithText("Hikes & outdoors").performClick()
+        compose.onNodeWithText("Outdoors").performClick()
         compose.runOnIdle { assertEquals("Explore", selected) }
         compose.onNodeWithTag("feed_category_Explore").assertIsSelected()
         compose.onNodeWithText(walk.title).performScrollTo().assertIsDisplayed()
@@ -68,7 +76,7 @@ class DiscoveryDesignTest {
                 }
             }
         }
-        compose.onNodeWithText("Join this plan").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("View plan").performScrollTo().assertIsDisplayed()
         compose.onRoot().captureRoboImage(filePath = "build/outputs/design/discovery-large-text-360.png")
     }
 
@@ -111,6 +119,52 @@ class DiscoveryDesignTest {
         compose.onNodeWithText("Join plan").assertIsDisplayed()
         compose.onNodeWithContentDescription("Back to discovery").performClick()
         compose.onNodeWithText("Join plan").assertDoesNotExist()
+    }
+
+    @Test fun completeDiscoveryScreen() {
+        val coffee = walk.copy(id = 2, cloudId = "test-coffee", title = "Coffee & a conversation", category = "Meet", location = "Jhamsikhel", date = "Sunday, 8 Nov", time = "10:00 AM", organizerName = "Srijana", joinedCount = 3, pricePerPerson = "Pay your own")
+        compose.setContent {
+            MyApplicationTheme(darkTheme = false) {
+                Frame { Feed(listOf(walk, coffee)) }
+            }
+        }
+        compose.onNodeWithText("Discover").assertIsDisplayed()
+        compose.onRoot().captureRoboImage(filePath = "build/outputs/design/complete-discover-360.png")
+    }
+
+    @Test fun completeMemberScreenAndHostingAction() {
+        var creates = 0
+        compose.setContent {
+            MyApplicationTheme(darkTheme = false) {
+                Frame(Screen.Profile) {
+                    MemberPlansScreen(UserProfile(name = "Aarav", bio = "Weekend walks, coffee and new conversations."),
+                        listOf(walk.copy(isJoinedByMe = true, isSaved = true)), "member", {}, {}, { creates++ }, {}, {}, {}, {})
+                }
+            }
+        }
+        compose.onRoot().captureRoboImage(filePath = "build/outputs/design/complete-my-plans-360.png")
+        compose.onNodeWithText("Hosting (0)").performClick()
+        compose.onNodeWithText("Create a plan").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(1, creates) }
+    }
+
+    @Test fun completeSignInScreen() {
+        compose.setContent {
+            MyApplicationTheme(darkTheme = false) {
+                AuthScreen(true, false, null, null, { _, _ -> }, { _, _ -> }, {}, {}, {})
+            }
+        }
+        compose.onNodeWithText("Password").assertIsDisplayed()
+        compose.onRoot().captureRoboImage(filePath = "build/outputs/design/complete-sign-in-360.png")
+    }
+
+    @Composable
+    private fun Frame(screen: Screen = Screen.Home, content: @Composable () -> Unit) {
+        Column(Modifier.fillMaxSize().background(ConnectWhite)) {
+            ConnectTopBar("Kathmandu, Nepal", "Aarav", false, {}, {})
+            Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+            ConnectBottomNavigation(screen, {})
+        }
     }
 
     @Composable
