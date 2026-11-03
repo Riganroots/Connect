@@ -81,3 +81,11 @@ jobs:
           name: connect-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Upload native design previews
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: connect-native-design-previews
+          path: app/build/outputs/design/*.png
+          if-no-files-found: ignore

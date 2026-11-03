@@ -183,15 +183,15 @@ fun AppHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 11.dp),
+                .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Connect",
                     color = ConnectDarkGreen,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -219,7 +219,7 @@ fun AppHeader(
                             Text(
                                 text = "Traveller",
                                 color = ConnectDarkGreen,
-                                fontSize = 8.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
@@ -293,7 +293,7 @@ fun ConnectBottomNavigation(
         tonalElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, ConnectGrayLight)
+            .background(ConnectWhite)
     ) {
         NavigationBarItem(
             selected = currentScreen is Screen.Home,
@@ -338,9 +338,9 @@ fun ConnectBottomNavigation(
 
 @Composable
 private fun connectNavigationColors() = NavigationBarItemDefaults.colors(
-    selectedIconColor = ConnectWhite,
+    selectedIconColor = ConnectDarkGreen,
     selectedTextColor = ConnectDarkGreen,
-    indicatorColor = ConnectDarkGreen,
+    indicatorColor = ConnectMint,
     unselectedIconColor = ConnectGrayMedium,
     unselectedTextColor = ConnectGrayMedium
 )
