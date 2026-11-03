@@ -39,7 +39,8 @@ internal fun categoryTitle(category: String): String = when (category) {
 fun ActivityPhotography(category: String, modifier: Modifier = Modifier, caption: String? = null) {
     Box(modifier) {
         Image(painterResource(categoryPhoto(category)), contentDescription = null,
-            contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            contentScale = ContentScale.Crop, alignment = if (category == "Explore") Alignment.TopCenter else Alignment.Center,
+            modifier = Modifier.fillMaxSize())
         if (caption != null) {
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
                 listOf(Color.Transparent, Color.Black.copy(alpha = 0.65f)), startY = 80f)))
