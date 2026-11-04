@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -120,181 +121,65 @@ fun PlanCard(
     plan: Plan,
     onJoinToggle: () -> Unit,
     onSaveToggle: () -> Unit,
-    onChatClick: () -> Unit
+    onChatClick: () -> Unit,
+    onDetails: (() -> Unit)? = null
 ) {
-    val chatRequiresJoin = plan.cloudId.isNotBlank() && !plan.isJoinedByMe
-
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 7.dp),
-        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)
+            .clickable(enabled = onDetails != null) { onDetails?.invoke() },
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = ConnectWhite),
-        border = BorderStroke(1.dp, ConnectGrayLight),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        border = BorderStroke(1.dp, ConnectGrayLight)
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Surface(shape = RoundedCornerShape(12.dp), color = ConnectMint) {
-                            Text(
-                                text = plan.category,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = ConnectDarkGreen
-                            )
-                        }
-                        if (plan.isVerifiedOrganizer) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Verified organizer",
-                                    tint = Color(0xFF2E7D32),
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Text("Verified host", fontSize = 12.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(7.dp))
-                    Text(
-                        text = plan.title,
-                        fontSize = 20.sp,
-                        lineHeight = 26.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = ConnectGrayDark,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(plan.category + if (plan.isJoinedByMe) " · Joined" else "", color = ConnectDarkGreen,
+                        style = MaterialTheme.typography.labelMedium)
+                    Text(plan.title, style = MaterialTheme.typography.titleMedium, color = ConnectGrayDark,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-
-                IconButton(
-                    onClick = onSaveToggle,
-                    modifier = Modifier.size(48.dp).clip(CircleShape).background(ConnectCream)
-                ) {
-                    Icon(
-                        imageVector = if (plan.isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                IconButton(onClick = onSaveToggle, modifier = Modifier.size(48.dp)) {
+                    Icon(if (plan.isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = if (plan.isSaved) "Unsave plan" else "Save plan",
-                        tint = if (plan.isSaved) ConnectError else ConnectGrayMedium,
-                        modifier = Modifier.size(20.dp)
-                    )
+                        tint = if (plan.isSaved) ConnectError else ConnectGrayMedium, modifier = Modifier.size(21.dp))
                 }
             }
-
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                PlanMetaRow(Icons.Default.DateRange, formatPlanSchedule(plan.date, plan.time))
+                PlanMetaRow(Icons.Default.LocationOn, plan.location)
+            }
+            HorizontalDivider(color = ConnectGrayLight)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.size(26.dp).background(ConnectDarkGreen, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = plan.organizerName.take(1).uppercase(),
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
+                Box(Modifier.size(32.dp).background(ConnectCream, CircleShape), contentAlignment = Alignment.Center) {
+                    Text(plan.organizerName.take(1).uppercase(), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = ConnectDarkGreen)
                 }
-                Spacer(modifier = Modifier.width(7.dp))
-                Text(
-                    text = plan.organizerName,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ConnectGrayDark,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                if (plan.organizerRating > 0.0) {
-                    Text(
-                        text = "★ ${plan.organizerRating}",
-                        fontSize = 13.sp,
-                        color = ConnectGrayMedium
-                    )
+                Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                    Text(plan.organizerName, fontSize = 13.sp, color = ConnectGrayDark, fontWeight = FontWeight.Medium,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${plan.joinedCount} joined", fontSize = 12.sp, color = ConnectGrayMedium)
                 }
+                Text(plan.pricePerPerson.ifBlank { "Ask host" }, fontSize = 13.sp, color = ConnectGrayDark,
+                    fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 100.dp))
             }
-
-            Surface(modifier = Modifier.fillMaxWidth(), color = ConnectWhite) {
-                Column(
-                    modifier = Modifier.padding(vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(7.dp)
-                ) {
-                    PlanMetaRow(icon = Icons.Default.LocationOn, text = plan.location)
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        PlanMetaRow(
-                            icon = Icons.Default.DateRange,
-                            text = formatPlanSchedule(plan.date, plan.time),
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = plan.pricePerPerson,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = ConnectDarkGreen,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+            if (onDetails != null) {
+                OutlinedButton(onClick = onDetails, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, ConnectGrayLight),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ConnectDarkGreen)) {
+                    Text(if (plan.isJoinedByMe) "View your plan" else "View plan")
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
-            }
-
-            Text(
-                text = plan.description,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                color = ConnectGrayMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Person, contentDescription = null, tint = ConnectGrayMedium, modifier = Modifier.size(15.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("${plan.joinedCount} joined", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = ConnectGrayDark)
-                Text("  ·  ${plan.participantsNeeded} more wanted", fontSize = 13.sp, color = ConnectGrayMedium, modifier = Modifier.weight(1f))
-            }
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = onChatClick,
-                    enabled = !chatRequiresJoin,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, ConnectGrayLight),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ConnectDarkGreen)
-                ) {
-                    Icon(
-                        if (chatRequiresJoin) Icons.Default.Lock else Icons.Default.Send,
-                        contentDescription = null,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        if (chatRequiresJoin) "Join to chat" else "Chat",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+            } else if (plan.isJoinedByMe) {
+                Button(onClick = onChatClick, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = ConnectDarkGreen)) { Text("Open group chat") }
+                TextButton(onClick = onJoinToggle, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                    Text("Leave activity", color = ConnectGrayMedium)
                 }
-
-                Button(
-                    onClick = onJoinToggle,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (plan.isJoinedByMe) ConnectCream else ConnectDarkGreen,
-                        contentColor = if (plan.isJoinedByMe) ConnectDarkGreen else Color.White
-                    ),
-                    border = if (plan.isJoinedByMe) BorderStroke(1.dp, ConnectMint) else null
-                ) {
-                    Text(
-                        text = if (plan.isJoinedByMe) "Joined" else "Join activity",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
+            } else {
+                Button(onClick = onJoinToggle, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = ConnectDarkGreen)) { Text("Join this plan") }
             }
         }
     }

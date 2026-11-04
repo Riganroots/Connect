@@ -42,7 +42,8 @@ private val LightColorScheme =
 
 @Composable
 fun MyApplicationTheme(
-  darkTheme: Boolean = isSystemInDarkTheme(),
+  // Screens use fixed light surfaces; keep controls on the same palette on system-dark phones.
+  darkTheme: Boolean = false,
   // Disable dynamic colors to keep cohesive branding as requested
   dynamicColor: Boolean = false,
   content: @Composable () -> Unit,

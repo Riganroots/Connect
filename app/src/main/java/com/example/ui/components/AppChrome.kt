@@ -174,109 +174,37 @@ fun AppHeader(
         )
     }
 
-    Surface(
-        color = ConnectWhite,
-        contentColor = ConnectGrayDark,
-        shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Connect",
-                    color = ConnectDarkGreen,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
+    ConnectTopBar(
+        location = profile?.location?.takeIf { it.isNotBlank() } ?: "Kathmandu, Nepal",
+        name = profile?.name ?: "Connect Member",
+        hasNotifications = notifications.isNotEmpty(),
+        onNotifications = { showNotifications = true }, onProfile = onConfigureProfile
+    )
+}
+
+@Composable
+fun ConnectTopBar(location: String, name: String, hasNotifications: Boolean,
+    onNotifications: () -> Unit, onProfile: () -> Unit) {
+    Surface(color = ConnectWhite) {
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("connect", color = ConnectGrayDark, fontSize = 23.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.8).sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.LocationOn,
-                        contentDescription = null,
-                        tint = ConnectGrayMedium,
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text(
-                        text = profile?.location?.takeIf { it.isNotBlank() } ?: "Kathmandu, Nepal",
-                        color = ConnectGrayMedium,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (profile?.isTravellerMode == true) {
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = ConnectMint
-                        ) {
-                            Text(
-                                text = "Traveller",
-                                color = ConnectDarkGreen,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
+                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = ConnectGrayMedium, modifier = Modifier.size(12.dp))
+                    Text(location, color = ConnectGrayMedium, fontSize = 12.sp, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 3.dp))
                 }
             }
-
             Box {
-                IconButton(
-                    onClick = { showNotifications = true },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(ConnectCream)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Notifications",
-                        tint = ConnectDarkGreen,
-                        modifier = Modifier.size(20.dp)
-                    )
+                IconButton(onClick = onNotifications) {
+                    Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = ConnectGrayDark, modifier = Modifier.size(22.dp))
                 }
-
-                if (notifications.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .size(9.dp)
-                            .background(ConnectError, CircleShape)
-                            .border(1.5.dp, ConnectWhite, CircleShape)
-                    )
-                }
+                if (hasNotifications) Box(Modifier.align(Alignment.TopEnd).padding(8.dp).size(6.dp).background(ConnectError, CircleShape))
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(ConnectCream)
-                    .clickable(onClick = onConfigureProfile),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(30.dp)
-                        .background(ConnectDarkGreen, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = (profile?.name?.take(1) ?: "C").uppercase(),
-                        color = Color.White,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 13.sp
-                    )
+            IconButton(onClick = onProfile) {
+                Box(Modifier.size(32.dp).background(ConnectMint, CircleShape), contentAlignment = Alignment.Center) {
+                    Text(name.take(1).uppercase(), color = ConnectDarkGreen, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -293,7 +221,7 @@ fun ConnectBottomNavigation(
         tonalElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, ConnectGrayLight)
+            .background(ConnectWhite)
     ) {
         NavigationBarItem(
             selected = currentScreen is Screen.Home,
@@ -304,7 +232,7 @@ fun ConnectBottomNavigation(
                     contentDescription = "Activities"
                 )
             },
-            label = { Text("Activities", fontWeight = FontWeight.SemiBold) },
+            label = { Text("Discover", fontSize = 12.sp, fontWeight = FontWeight.Medium) },
             colors = connectNavigationColors()
         )
 
@@ -312,12 +240,11 @@ fun ConnectBottomNavigation(
             selected = currentScreen is Screen.CreatePlan,
             onClick = { onNavigate(Screen.CreatePlan) },
             icon = {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Create a plan"
-                )
+                Box(Modifier.size(40.dp).background(ConnectDarkGreen, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Add, contentDescription = "Create a plan", tint = ConnectWhite, modifier = Modifier.size(22.dp))
+                }
             },
-            label = { Text("Create", fontWeight = FontWeight.SemiBold) },
+            label = { Text("Create", fontSize = 12.sp, fontWeight = FontWeight.Medium) },
             colors = connectNavigationColors()
         )
 
@@ -330,7 +257,7 @@ fun ConnectBottomNavigation(
                     contentDescription = "Profile"
                 )
             },
-            label = { Text("Profile", fontWeight = FontWeight.SemiBold) },
+            label = { Text("My plans", fontSize = 12.sp, fontWeight = FontWeight.Medium) },
             colors = connectNavigationColors()
         )
     }
@@ -338,9 +265,9 @@ fun ConnectBottomNavigation(
 
 @Composable
 private fun connectNavigationColors() = NavigationBarItemDefaults.colors(
-    selectedIconColor = ConnectWhite,
+    selectedIconColor = ConnectDarkGreen,
     selectedTextColor = ConnectDarkGreen,
-    indicatorColor = ConnectDarkGreen,
+    indicatorColor = Color.Transparent,
     unselectedIconColor = ConnectGrayMedium,
     unselectedTextColor = ConnectGrayMedium
 )

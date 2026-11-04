@@ -13,6 +13,9 @@ import com.example.ui.viewmodel.validateActivityForm
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
@@ -46,22 +49,39 @@ fun CreatePlanScreen(
     val publishError by viewModel.publishError.collectAsStateWithLifecycle()
     val isPublishing by viewModel.isPublishing.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
+    val pickDate = {
+        val now = java.util.Calendar.getInstance()
+        android.app.DatePickerDialog(context, { _, year, month, day ->
+            val chosen = java.util.Calendar.getInstance().apply { set(year, month, day) }
+            viewModel.formDate.value = java.text.SimpleDateFormat("EEE, d MMM yyyy", java.util.Locale.ENGLISH).format(chosen.time)
+        }, now.get(java.util.Calendar.YEAR), now.get(java.util.Calendar.MONTH), now.get(java.util.Calendar.DAY_OF_MONTH)).apply {
+            datePicker.minDate = System.currentTimeMillis()
+        }.show()
+    }
+    val pickTime = {
+        val now = java.util.Calendar.getInstance()
+        android.app.TimePickerDialog(context, { _, hour, minute ->
+            val chosen = java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, hour); set(java.util.Calendar.MINUTE, minute) }
+            viewModel.formTime.value = java.text.SimpleDateFormat("h:mm a", java.util.Locale.ENGLISH).format(chosen.time)
+        }, now.get(java.util.Calendar.HOUR_OF_DAY), now.get(java.util.Calendar.MINUTE), false).show()
+    }
     var showValidation by remember { mutableStateOf(false) }
     val validationError = validateActivityForm(
         title.trim(), location.trim(), date.trim(), time.trim(), price.trim(), participants, description.trim()
     )
 
-    Column(modifier = Modifier.fillMaxSize().background(ConnectMintLight).imePadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(ConnectWhite).imePadding()) {
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
                 Column {
-                    Text("Create an activity", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = ConnectGrayDark)
+                    Text("Make a plan", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = ConnectGrayDark)
                     Text(
-                        "A few details are enough. You can coordinate the rest in chat.",
+                        "Choose what, where and when. Invite good company.",
                         fontSize = 14.sp,
                         color = ConnectGrayMedium,
                         modifier = Modifier.padding(top = 3.dp)
@@ -158,7 +178,8 @@ fun CreatePlanScreen(
                         ConnectTextField(
                             value = date,
                             onValueChange = { viewModel.formDate.value = it },
-                            label = "Date (required)",
+                            label = "Date",
+                            trailingIcon = { IconButton(onClick = { pickDate() }) { Icon(Icons.Default.DateRange, contentDescription = "Choose date", tint = ConnectDarkGreen) } },
                             placeholder = "e.g. 7 November 2026",
                             isError = showValidation && date.isBlank(),
                             modifier = Modifier.fillMaxWidth()
@@ -167,6 +188,7 @@ fun CreatePlanScreen(
                             value = time,
                             onValueChange = { viewModel.formTime.value = it },
                             label = "Time (optional)",
+                            trailingIcon = { IconButton(onClick = { pickTime() }) { Icon(Icons.Default.Edit, contentDescription = "Choose time", tint = ConnectDarkGreen) } },
                             placeholder = "7:30 PM",
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -275,18 +297,11 @@ private fun FormSection(
     helper: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = ConnectWhite),
-        border = BorderStroke(1.dp, ConnectGrayLight),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text(title, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = ConnectGrayDark)
-            Text(helper, fontSize = 14.sp, color = ConnectGrayMedium, modifier = Modifier.padding(top = 2.dp, bottom = 11.dp))
-            content()
-        }
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Text(title, style = MaterialTheme.typography.titleMedium, color = ConnectGrayDark)
+        Text(helper, style = MaterialTheme.typography.bodyMedium, color = ConnectGrayMedium,
+            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+        content()
     }
 }
 
@@ -299,6 +314,7 @@ private fun ConnectTextField(
     modifier: Modifier = Modifier,
     isError: Boolean = false,
     leadingIcon: (@Composable (() -> Unit))? = null,
+    trailingIcon: (@Composable (() -> Unit))? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default
 ) {
     OutlinedTextField(
@@ -311,6 +327,7 @@ private fun ConnectTextField(
         keyboardOptions = keyboardOptions,
         isError = isError,
         leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
         shape = RoundedCornerShape(14.dp),
         colors = connectFieldColors()
     )
